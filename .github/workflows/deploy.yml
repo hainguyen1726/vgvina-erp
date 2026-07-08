@@ -38,5 +38,5 @@ jobs:
           SOURCE: "dist/"
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
           REMOTE_USER: ${{ secrets.SSH_USER }}
-          TARGET: "/var/www/baocao.vgvina.com/dist"
+          TARGET: "/home/admin/domains/baocao.vgvina.com/public_html"
           EXCLUDE: "/dist/, /node_modules/"

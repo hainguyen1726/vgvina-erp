@@ -4,7 +4,7 @@
 # Configuration
 $REMOTE_USER = "root"
 $REMOTE_HOST = "116.118.45.67"
-$REMOTE_SOURCE_DIR = "/var/www/vgvina-erp-source"
+$REMOTE_SOURCE_DIR = "/root/vgvina-erp-source"
 $DOMAIN = "baocao.vgvina.com"
 
 Write-Host "Starting deployment process (TKMG-AMZ Flow)..." -ForegroundColor Cyan

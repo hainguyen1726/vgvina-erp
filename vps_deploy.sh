@@ -2,8 +2,8 @@
 # VPS Deploy Script for vgvina-erp (Caddy Docker Volume Mount)
 # Usage: Run this script on the VPS to pull latest code and build
 
-SOURCE_DIR="/var/www/vgvina-erp-source"
-WEB_ROOT="/var/www/baocao.vgvina.com/dist"
+SOURCE_DIR="/root/vgvina-erp-source"
+WEB_ROOT="/home/admin/domains/baocao.vgvina.com/public_html"
 
 echo "=== [1/4] Navigating to source directory ==="
 cd "$SOURCE_DIR" || { echo "Source directory not found!"; exit 1; }
@@ -32,5 +32,10 @@ mkdir -p "$WEB_ROOT"
 rm -rf "${WEB_ROOT:?}"/*
 # Copy new build
 cp -r dist/* "$WEB_ROOT/"
+
+# Fix ownership for DirectAdmin / LiteSpeed
+chown -R admin:admin "$WEB_ROOT"
+find "$WEB_ROOT" -type d -exec chmod 755 {} \;
+find "$WEB_ROOT" -type f -exec chmod 644 {} \;
 
 echo "=== Deploy Completed Successfully! ==="
