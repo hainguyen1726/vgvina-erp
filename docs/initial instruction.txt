@@ -1,0 +1,237 @@
+Bạn là một chuyên gia, coder, xử lý dữ liệu SQL, database có kinh nghiệm làm app và web quản lý bán hàng, chi tiêu, tồn kho, hiểu biết sâu sắc về database trên supabase. Cho tôi biết các chức năng, tiện ích mà một app quản lý bán hàng chuyên nghiệp cần có.
+
+
+
+Công ty tôi đang kinh doanh sản xuất và mua bán hải sản. Chúng tôi mua hàng của NCC sau đó chế biến, đóng gói và bán cho khách hàng. Khách hàng là Nhà Hàng, Nhà phân phối, Khách lẻ.
+
+
+
+Đưa ra các chỉ dẫn, hướng dẫn sự liên quan giữa các hạng mục, tài khoản, cách thực hiện, mối liên kết giữa các chức năng, tiện ích trong app để AI hiểu và code ra giao diện front end, backend.
+
+
+
+Backend, database dùng supapase với các bảng riêng biệt. Hướng dẫn chi tiết tạo các bảng và cách thức liên kết giữa các bảng dữ liệu để khi thao tác trên front end thì backend cũng hoạt động tương ứng.
+
+
+
+Ngoài các chức năng mà bạn tư vấn, tôi lưu ý các chức năng mà tôi muốn như sau:
+
+
+
+- Có danh sách users và phân quyền cho users: Quyền xem, quyền ghi, quyền xóa, quyền sửa đổi, quyền phê duyệt thành viên, quyền phân quyền,...;
+
+- Công ty có phân chia khu vực các vùng miền, có thể phân quyền xem hoặc ghi số liệu cho từng nhóm quyền, ví dụ: sale miền Bắc chỉ xem được các dữ liệu của Miền Bắc.
+
+- Có thể theo dõi được phạm vi công việc của các nhân viên sale, kế toán,...
+
+- Khi có nhu cầu hoặc có nhân viên nghỉ việc thì có chức năng chuyển các công việc của 1 nhân viên cho một nhân viên khác.
+
+- Có chức năng thống kê theo đối tượng, khách hàng, Nhà cung cấp, lọc thời gian;
+
+- Website có trang đăng nhập;
+
+- Có bảng quản lý Khách hàng, Tồn kho, bảng quản lý xuất nhập, quản lý công nợ (Công nợ NCC, Công nợ với Khách hàng), quản lý tài khoản, ghi nhận các giao dịch, Bảng định nghĩa đối tượng, quản lý định nghĩa phân chia Hạng mục lớn, hạng mục nhỏ.
+
+
+
+Ngoài các ý kiến nêu trên của tôi, bạn có thể tư vấn điều chỉnh và bổ sung thêm để tôi có một cấu trúc database đầy đủ, thông minh và website/app quản lý đầy đủ các tính năng.
+
+
+
+Không chức năng quản lý sản xuất vì quá phức tạp đối với mô hình của chúng tôi hiện tại.
+
+
+
+Bổ sung thêm yêu cầu: Nhân viên sale chịu trách nhiệm theo dõi và thu hồi công nợ đối với các khách hàng thuộc phạm vi quản lý của mình.
+
+
+
+Quản lý mua hàng: Bổ sung thêm tạo Thông báo đối soát công nợ với NCC (có sẵn biểu mẫu bằng file excel và có thể xuất ra file excel khi điền thông tin vào biểu mẫu đó);
+
+
+
+Quản lý bán hàng: Bổ sung thêm tạo Thông báo công nợ với NPP, Nhà hàng, Khách lẻ (có sẵn biểu mẫu bằng file excel và có thể xuất ra file excel khi điền thông tin vào biểu mẫu đó);
+
+
+
+Tôi muốn bảng quản lý giao dịch sẽ có đầy đủ các thông tin về dạng (type) thu/chi, hạng mục, đối tượng, mô tả, tài khoản, người thu/chi, thông tin partner, tài khoản, Cơ sở (Vì công ty muốn phân tích/tổng hợp số liệu doanh thu/chi phí của từng cơ sở, các cơ sở này có kho riêng). Vì bảng này ngoài ghi nhận các giao dịch mua bán hàng hóa kinh doanh còn ghi nhận rất nhiều các khoản thu chi khác như: lương, thuê nhà, thanh lý đồ đạc, xăng xe, sửa chữa, bảo dưỡng, mua văn phòng phẩm.
+
+
+
+Cần có bảng Tài khoản để thống kê số dư của từng tài khoản thuộc sở hữu của Công ty, ví dụ: Quỹ tiền mặt, Techcombank, MB Bank, VRN,...Tài khoản Công nợ NCC, tài khoản Công nợ Khách hàng. Có chức năng chuyển khoản giữa các tài khoản, giao dịch chuyển khoản này phải được ghi nhận tại lịch sử giao dịch (các khoản giao dịch nội bộ không được tính vào doanh thu/chi phí).
+
+
+
+Luồng Thanh toán Đơn hàng (Nhập/Xuất kho)
+
+Logic này sẽ được áp dụng khi người dùng tạo/xác nhận phiếu nhập/xuất kho.
+
+
+
+Giao diện: Trên phiếu Nhập/Xuất kho, có các trường Tổng tiền, Đã thanh toán, Còn lại, và Tài khoản thanh toán.
+
+Backend Logic (Khi bấm "Lưu" hoặc "Xác nhận"):
+
+Trường hợp 1: Thanh toán hết (Còn lại = 0)
+
+Hệ thống sẽ KHÔNG tạo bản ghi trong debt_transactions.
+
+Thay vào đó, tạo một bản ghi mới trong financial_transactions:
+
+
+
+Nếu là Phiếu Xuất (Bán hàng):
+
+transaction_date (TIMESTAMP WITH TIME ZONE): Ngày giờ giao dịch.
+
+type: 'INCOME'
+
+amount: Tổng tiền đơn hàng
+
+category_id: ID của hạng mục "Doanh thu bán hàng"
+
+description: mô tả chi tiết theo nguyên tắc: Bán + tên các sản phẩm (tên các sp được ghép liền với nhau bằng dấu +)
+
+partner_id: ID của Khách hàng
+
+account_id: ID tài khoản đã nhận tiền
+
+facility_id: ID của Cơ sở
+
+employee_id: nhân viên chịu trách nhiệm
+
+
+
+Nếu là Phiếu Nhập (Mua hàng):
+
+transaction_date (TIMESTAMP WITH TIME ZONE): Ngày giờ giao dịch.
+
+type: 'EXPENSE'
+
+amount: Tổng tiền đơn hàng
+
+category_id: ID của hạng mục "Chi phí nguyên vật liệu"
+
+description: mô tả chi tiết theo nguyên tắc: Mua+ tên các sản phẩm (tên các sp được ghép liền với nhau bằng dấu +)
+
+partner_id: ID của NCC
+
+account_id: ID tài khoản đã chi tiền
+
+facility_id: ID của Cơ sở
+
+employee_id: nhân viên chịu trách nhiệm
+
+
+
+Trong phiếu Xuất Kho (có mã số dạng: HD + mã có 6 ký tự), Phiếu nhập kho (có mã số dạng: PN + mã có 6 ký tự) có dòng Còn lại (tức là tổng tiền - số tiền đã thanh toán = Còn lại) nếu dòng này có giá trị = 0 thì, tức là đã thanh toán hết thì:
+
+
+
+Phiếu xuất kho: Sẽ ghi nhận giao dịch tại financial_transactions là dạng Thu, giá trị giao dịch là tổng giá trị các mặt hàng trên phiếu giao hàng, partner sẽ là tên Khách hàng, dạng partner: NPP, Khách lẻ hoặc Nhà hàng, hạng mục là: Doanh thu bán hàng, tài khoản được nêu trong Phiếu nhập kho
+
+
+
+Phiếu nhập kho: Sẽ ghi nhận giao dịch tại financial_transactions là dạng Chi, giá trị giao dịch là tổng giá trị các mặt hàng trên phiếu giao hàng, partner sẽ là tên nhà cung cấp, dạng partner: NCC, hạng mục là: Chi phí nguyên vật liệu, tài khoản là tài khoản được nêu trong Phiếu nhập kho
+
+
+
+Nếu dòng Còn lại có giá trị > 0 thì sẽ ghi nhận giao dịch này vào debt_transactions, Nếu là Phiếu nhập nghĩa là khoản phải trả, nếu là phiếu xuất nghĩa là khoản phải thu.
+
+
+
+Có chức năng chuyển kho giữa Kho trung tâm tới Kho của các Cơ sở khác nhau. Đảm bảo theo dõi được số lượng tồn kho của từng cơ sở.
+
+
+
+Có Phiếu thanh lý để loại trừ số lượng hàng hỏng/ chưa đạt yêu cầu đã giao cho khách, làm phiếu thanh lý để trừ công nợ với Khách mua đi. Nếu hủy hàng đi thì Giá trị thanh lý = 0, nếu bán giảm giá thì sẽ ghi nhận vào doanh thu và ghi nhận vào bảng financial_transactions.
+
+
+
+Loại bỏ chức năng Định mức tồn kho.
+
+
+
+Dựa theo nguyên tắc nêu trên hãy giúp tôi viết mã SQL để tạo các bảng nói trên trong Supabase. Nguyên tắc đặt tên các bảng là tên bạn đã gợi ý và thêm tiền tố vgvina_
+
+kết nối supabase theo các thông số bên dưới.
+
+POSTGRES_PASSWORD=1ae85387c956ba6543d086126818c020
+JWT_SECRET=a576d204de92cc42353f099743c57a6028f79443adbf0175a803254476dcb04f
+ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiZXhwIjoxOTk5OTk5OTk5fQ.HPccvqH7vJ8u1F4LlLkK2Uo8cCvXajYciaLK8VwXDtM
+SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJleHAiOjE5OTk5OTk5OTl9.9kCRnBUDk6mGUbqRvBS1d3USg2TD9vEXjKYCuJHwtBE
+DASHBOARD_USERNAME=supabase
+DASHBOARD_PASSWORD=3038640f7b66130575c73f335cf03159
+SECRET_KEY_BASE=UpNVntn3cDxHJpq99YMc1T1AQgQpc8kfYTuRgBiYa15BLrx8etQoXz3gZv1/u2oq
+VAULT_ENC_KEY=your-32-character-encryption-key
+PG_META_CRYPTO_KEY=your-encryption-key-32-chars-min
+
+Studio supabase tại address: https://supabase.vgvina.com/
+Api supabase tại: https://api-supabase.vgvina.com/
+
+User admin đã được tạo sẵn tại bảng vgvina_users trong supabase như sau:
+
+[
+  {
+    "id": 2,
+    "username": "hainguyen",
+    "password_hash": "$2b$10$rNq3FXoZvtmJS/FQUfejReTn.uTYsCa1JxeRQCFjAbl4/gFXCS.I6",
+    "full_name": "Nguyễn Minh Hải",
+    "email": "hainguyen1726@gmail.com",
+    "phone_number": "0964023333",
+    "role": "admin",
+    "status": "Active",
+    "created_at": "2026-01-27 07:59:33.456746+00",
+    "updated_at": "2026-01-27 07:59:33.456746+00",
+    "last_login_at": "2026-01-27 08:00:27.346+00"
+  }
+]
+
+Code dự định sẽ được upload lên VPS sau
+IP chính: 116.118.45.67
+Port: 22
+Username: root
+
+
+--------------------------------------------------------------------------------
+HỆ THỐNG SUPABASE (SELF-HOSTED) & TECHNICAL NOTES
+--------------------------------------------------------------------------------
+
+1. MÔI TRƯỜNG DEPLOY
+   - OS: VPS DirectAdmin (CentOS 7)
+   - Web Server: OpenLiteSpeed (làm Reverse Proxy)
+   - Docker Path: /root/supabase/docker
+   - Docker Network: Bridge Mode (IP thay đổi khi restart!)
+
+2. CẤU HÌNH QUAN TRỌNG (CRITICAL)
+   A. Cấu hình .env (Tại /root/supabase/docker/.env):
+      - ENABLE_EMAIL_AUTOCONFIRM=true
+      - GOTRUE_MAILER_AUTOCONFIRM=true  (Bắt buộc để Auth chạy)
+      - SMTP_HOST=supabase-mail         (Bắt buộc dùng Host nội bộ để tránh crash 500)
+      - SMTP_PORT=2500
+      - ADDITIONAL_REDIRECT_URLS=http://localhost:3000
+
+   B. Cấu hình OpenLiteSpeed (Reverse Proxy):
+      - OpenLiteSpeed dùng "External App" (extprocessor) để trỏ vào IP Docker.
+      - VẤN ĐỀ: Khi `docker compose down/up`, IP Container (172.x.x.x) sẽ THAY ĐỔI và LỆCH với Config DA.
+      - KHẮC PHỤC KHI LỖI 503:
+        1. SSH vào VPS, kiểm tra IP mới:
+           docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' supabase-kong
+           docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' supabase-studio
+        2. Cập nhật IP mới vào DirectAdmin -> Custom HTTPD Configurations -> supabase.vgvina.com
+        3. Restart OpenLiteSpeed.
+
+   C. Security & Ports:
+      - Docker chỉ bind ports vào 127.0.0.1 (localhost).
+      - Không mở port 3000/8000 trực tiếp ra Internet.
+      - Mọi traffic phải đi qua OpenLiteSpeed (443) -> Docker (8000/3000).
+
+3. DEBUGGING GUIDE
+   - Lỗi 500 Register: Kiểm tra .env, đảm bảo SMTP_HOST=supabase-mail.
+   - Lỗi 503 API: Kiểm tra lệch IP giữa Docker và OpenLiteSpeed (xem mục B).
+   - Lỗi CORS/ERR_FAILED: Do SSL không tin cậy hoặc Server Auth crash.
+     -> Fix: Vào https://api-supabase.vgvina.com/auth/v1/health -> Bấm "Tiếp tục truy cập".
+
+4. THÔNG TIN KHÁC
+   - Tường lửa CSF: Đã whitelist dải IP Docker (172.16.x, 172.18.x, 172.22.x).
+   - Database: vgvina_users (Custom table), không dùng public.users mặc định.
