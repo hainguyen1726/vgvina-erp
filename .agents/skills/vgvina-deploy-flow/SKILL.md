@@ -3,9 +3,50 @@ name: vgvina-deploy-flow
 description: Hướng dẫn đồng bộ mã nguồn dự án vgvina-erp và deploy code tĩnh lên VPS chạy OpenLiteSpeed + DirectAdmin qua GitHub Actions. Bao gồm workflow Antigravity (Local) và Hermes (VPS).
 ---
 
-# 🚀 VGVINA-ERP — Hướng dẫn toàn diện cho Hermes Agent
+# 🚀 VGVINA-ERP — Hướng dẫn toàn diện cho AI Agent (Antigravity & Hermes)
 
 > Đọc toàn bộ file này trước khi bắt đầu làm việc. Mọi thông tin cần thiết đều có ở đây.
+
+---
+
+## 🔴 SAFE START PROTOCOL — BẮT BUỘC THỰC HIỆN TRƯỚC MỌI THAO TÁC
+
+> [!IMPORTANT]
+> **Antigravity PHẢI tự động chạy các lệnh dưới đây mỗi khi bắt đầu làm việc với dự án vgvina-erp, kể cả khi user không yêu cầu.** Mục đích: đồng bộ code từ Hermes Agent có thể đã thay đổi trên VPS.
+
+### Antigravity — Các bước bắt buộc khi bắt đầu phiên làm việc:
+
+```powershell
+# Bước 1: Lấy toàn bộ thay đổi từ GitHub (bao gồm nhánh Hermes)
+git fetch origin
+
+# Bước 2: Kiểm tra xem Hermes có push nhánh mới không
+git branch -r | Select-String "dev/hermes"
+
+# Bước 3: Kiểm tra trạng thái local
+git status
+git log origin/main..HEAD --oneline  # Xem local có commit chưa push không
+git log HEAD..origin/main --oneline  # Xem remote có commit local chưa có không
+```
+
+**Xử lý theo kết quả:**
+
+| Tình huống | Hành động |
+|---|---|
+| Có nhánh `dev/hermes-*` chưa được merge | Merge vào `main` local trước khi làm việc |
+| Local chậm hơn remote (`origin/main`) | `git pull origin main` trước |
+| Local và remote đồng bộ | Tiến hành công việc bình thường |
+| Local có commit chưa push | Push lên trước hoặc ghi nhận để xử lý sau |
+
+```powershell
+# Nếu có nhánh Hermes cần merge:
+git merge origin/dev/hermes-YYYYMMDD-HHMM
+git push origin main
+# → GitHub Actions sẽ tự động build và deploy
+```
+
+> [!WARNING]
+> **KHÔNG bao giờ bắt đầu sửa code khi chưa chạy Safe Start Protocol.** Bỏ qua bước này có thể gây conflict với code của Hermes Agent trên VPS.
 
 ---
 
