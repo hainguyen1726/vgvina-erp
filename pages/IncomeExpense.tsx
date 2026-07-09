@@ -8,12 +8,13 @@ import Pagination from '../components/ui/Pagination';
 import { TableActions } from '../components/ui/TableActions';
 import VoucherModal from '../components/modals/VoucherModal';
 import EditTransactionModal from '../components/modals/EditTransactionModal';
+import { ImportTransactionsModal } from '../components/modals/ImportTransactionsModal';
 import { Page, FinancialTransaction, TransactionType, AdminAccount } from '../types';
 import { transactionService } from '../src/services/transactionService';
 import { accountService } from '../src/services/accountService';
 import { excelUtils } from '../src/utils/excelUtils';
 import PrintVoucherTemplate from '../components/print/PrintVoucherTemplate';
-import { ThuChiIcon, PlusIcon, ExportIcon, EditIcon, DeleteIcon, ArrowUpIcon, ChevronDownIcon, ArrowsUpDownIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/icons/Icons';
+import { ThuChiIcon, PlusIcon, ExportIcon, ImportIcon, EditIcon, DeleteIcon, ArrowUpIcon, ChevronDownIcon, ArrowsUpDownIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/icons/Icons';
 import { useNotification } from '../contexts/NotificationContext';
 import { useBranch } from '../contexts/BranchContext';
 import SearchableSelect from '../components/ui/SearchableSelect';
@@ -211,6 +212,7 @@ const IncomeExpense: React.FC = () => {
   const [transactionToEdit, setTransactionToEdit] = useState<FinancialTransaction | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [accounts, setAccounts] = useState<AdminAccount[]>([]);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -669,6 +671,7 @@ const IncomeExpense: React.FC = () => {
               ...(can('inventory', 'delete') ? [{ label: 'Phiếu thanh lý', onClick: () => handleOpenVoucherModal('liquidation') }] : []),
             ],
           },
+          ...(can('financial_transactions', 'create') ? [{ label: 'Nhập file', icon: <ImportIcon />, onClick: () => setIsImportModalOpen(true), variant: 'secondary' as any }] : []),
           ...(can('reports', 'export') ? [{ label: 'Xuất file', icon: <ExportIcon />, onClick: handleExportExcel, variant: 'secondary' as any }] : []),
         ]}
         columns={allColumns}
@@ -788,6 +791,11 @@ const IncomeExpense: React.FC = () => {
         isOpen={voucherModal.isOpen}
         voucherType={voucherModal.type}
         onClose={handleCloseVoucherModal}
+      />
+      <ImportTransactionsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={fetchTransactions}
       />
     </>
   );
