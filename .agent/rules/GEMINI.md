@@ -95,6 +95,13 @@ When auto-applying an agent, inform the user:
 
 ## TIER 0: UNIVERSAL RULES (Always Active)
 
+### 🔴 Safe Start Protocol (MANDATORY)
+
+**Mỗi khi bắt đầu phiên làm việc, trước khi thực hiện bất kỳ thay đổi nào:**
+1. Đọc và thực thi quy tắc đồng bộ an toàn tại `@[skills/vgvina-deploy-flow]` (Safe Start Protocol).
+2. Chạy `git fetch origin` để kiểm tra các nhánh phát triển mới của Hermes Agent (`dev/hermes-*`) trên VPS.
+3. Nếu phát hiện nhánh Hermes mới chưa được gộp, **bắt buộc** phải gộp (merge) vào nhánh chính trước khi code để tránh conflict.
+
 ### 🌐 Language Handling
 
 When user's prompt is NOT in English:
