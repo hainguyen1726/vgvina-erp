@@ -135,6 +135,24 @@ CREATE TRIGGER audit_users_changes
     AFTER INSERT OR UPDATE OR DELETE ON vgvina_users
     FOR EACH ROW EXECUTE FUNCTION audit_log_changes();
 
+-- Return Vouchers
+DROP TRIGGER IF EXISTS audit_return_vouchers_changes ON vgvina_return_vouchers;
+CREATE TRIGGER audit_return_vouchers_changes
+    AFTER INSERT OR UPDATE OR DELETE ON vgvina_return_vouchers
+    FOR EACH ROW EXECUTE FUNCTION audit_log_changes();
+
+-- Scrapping Vouchers
+DROP TRIGGER IF EXISTS audit_scrapping_vouchers_changes ON vgvina_scrapping_vouchers;
+CREATE TRIGGER audit_scrapping_vouchers_changes
+    AFTER INSERT OR UPDATE OR DELETE ON vgvina_scrapping_vouchers
+    FOR EACH ROW EXECUTE FUNCTION audit_log_changes();
+
+-- Internal Transfers
+DROP TRIGGER IF EXISTS audit_internal_transfers_changes ON vgvina_internal_transfers;
+CREATE TRIGGER audit_internal_transfers_changes
+    AFTER INSERT OR UPDATE OR DELETE ON vgvina_internal_transfers
+    FOR EACH ROW EXECUTE FUNCTION audit_log_changes();
+
 -- ============================================
 -- NOTES
 -- ============================================
