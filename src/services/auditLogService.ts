@@ -40,7 +40,7 @@ export const auditLogService = {
 
         const { data, error } = await query
             .order('created_at', { ascending: false })
-            .limit(1000); // Limit to last 1000 logs for performance
+            .limit(5000); // Increased limit to 5000 for longer history
 
         if (error) {
             console.error('Error fetching audit logs:', error);
