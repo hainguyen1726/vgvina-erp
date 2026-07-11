@@ -221,7 +221,7 @@ export const SalesOrderDetailModal = ({ item, onClose, onEditClick, onDeleteClic
             {isSalesOrder && item.status === OrderStatus.COMPLETED && (
               <button 
                 onClick={() => onReturnClick?.(item)} 
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors whitespace-nowrap"
                 title="Khách trả hàng cho đơn này"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -230,16 +230,10 @@ export const SalesOrderDetailModal = ({ item, onClose, onEditClick, onDeleteClic
                 Trả hàng
               </button>
             )}
-            <button onClick={() => setIsPrinting(true)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-lg hover:bg-[#0052a3]">
-              In phiếu
-            </button>
-            <button onClick={handleExport} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-green-100 text-green-700 border border-green-200 rounded-lg hover:bg-green-200">
-              <ExportIcon className="w-4 h-4" /> Xuất file
-            </button>
             {isAdmin && (
               <button 
                 onClick={() => setShowHistory(true)} 
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 mr-auto"
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 mr-auto whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-gray-500">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -247,17 +241,23 @@ export const SalesOrderDetailModal = ({ item, onClose, onEditClick, onDeleteClic
                 Lịch sử
               </button>
             )}
+            <button onClick={() => setIsPrinting(true)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-lg hover:bg-[#0052a3] whitespace-nowrap">
+              In phiếu
+            </button>
+            <button onClick={handleExport} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-green-100 text-green-700 border border-green-200 rounded-lg hover:bg-green-200 whitespace-nowrap">
+              <ExportIcon className="w-4 h-4" /> Xuất file
+            </button>
             {onEditClick && can(isSalesOrder ? 'sales_orders' : 'purchase_orders', 'edit') && (
-              <button onClick={() => onEditClick(item)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50">
+              <button onClick={() => onEditClick(item)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap">
                 <EditIcon className="w-4 h-4" /> Sửa
               </button>
             )}
             {onDeleteClick && can(isSalesOrder ? 'sales_orders' : 'purchase_orders', 'delete') && (
-              <button onClick={() => onDeleteClick(item)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
+              <button onClick={() => onDeleteClick(item)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 whitespace-nowrap">
                 <DeleteIcon className="w-4 h-4" /> Xóa
               </button>
             )}
-            <button onClick={onClose} className="px-4 py-2 text-sm font-medium bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Đóng</button>
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 whitespace-nowrap">Đóng</button>
           </div>
         </div>
       </div>

@@ -99,76 +99,78 @@ const DetailModal = ({ item, onClose, onConfirm, onEditClick, onDeleteClick }: {
 
     if (!item) return null;
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" onClick={onClose}>
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center border-b p-4">
-                    <h3 className="text-lg font-semibold text-gray-800">Chi tiết Phiếu Chuyển kho: {item.code}</h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-800 p-2 rounded-full">
-                        <CloseIcon />
-                    </button>
-                </div>
-                <div className="p-6 max-h-[70vh] overflow-y-auto">
-                    {/* General Info */}
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm mb-6">
-                        <div className="flex justify-between border-b pb-2"><span className="text-gray-500">Mã phiếu:</span><span className="font-semibold">{item.code}</span></div>
-                        <div className="flex justify-between border-b pb-2"><span className="text-gray-500">Ngày tạo:</span><span>{formatDate(item.transfer_date)}</span></div>
-                        <div className="flex justify-between border-b pb-2"><span className="text-gray-500">Kho đi:</span><span className="font-semibold">{item.from_warehouse}</span></div>
-                        <div className="flex justify-between border-b pb-2"><span className="text-gray-500">Kho đến:</span><span className="font-semibold">{item.to_warehouse}</span></div>
-                        <div className="flex justify-between border-b pb-2"><span className="text-gray-500">Người tạo:</span><span>{item.creator_user}</span></div>
-                        <div className="flex justify-between border-b pb-2"><span className="text-gray-500">Trạng thái:</span><span>{item.status === 'PENDING' ? <span className="text-orange-600 font-semibold">Đang chờ</span> : <span className="text-green-600 font-semibold">Đã hoàn thành</span>}</span></div>
-                        <div className="col-span-2"><span className="text-gray-500">Ghi chú:</span><p className="mt-1 text-gray-800">{item.notes || 'Không có'}</p></div>
+        <>
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" onClick={onClose}>
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center border-b p-4">
+                        <h3 className="text-lg font-semibold text-gray-800">Chi tiết Phiếu Chuyển kho: {item.code}</h3>
+                        <button onClick={onClose} className="text-gray-500 hover:text-gray-800 p-2 rounded-full">
+                            <CloseIcon />
+                        </button>
                     </div>
+                    <div className="p-6 max-h-[70vh] overflow-y-auto">
+                        {/* General Info */}
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm mb-6">
+                            <div className="flex justify-between border-b pb-2"><span className="text-gray-500">Mã phiếu:</span><span className="font-semibold">{item.code}</span></div>
+                            <div className="flex justify-between border-b pb-2"><span className="text-gray-500">Ngày tạo:</span><span>{formatDate(item.transfer_date)}</span></div>
+                            <div className="flex justify-between border-b pb-2"><span className="text-gray-500">Kho đi:</span><span className="font-semibold">{item.from_warehouse}</span></div>
+                            <div className="flex justify-between border-b pb-2"><span className="text-gray-500">Kho đến:</span><span className="font-semibold">{item.to_warehouse}</span></div>
+                            <div className="flex justify-between border-b pb-2"><span className="text-gray-500">Người tạo:</span><span>{item.creator_user}</span></div>
+                            <div className="flex justify-between border-b pb-2"><span className="text-gray-500">Trạng thái:</span><span>{item.status === 'PENDING' ? <span className="text-orange-600 font-semibold">Đang chờ</span> : <span className="text-green-600 font-semibold">Đã hoàn thành</span>}</span></div>
+                            <div className="col-span-2"><span className="text-gray-500">Ghi chú:</span><p className="mt-1 text-gray-800">{item.notes || 'Không có'}</p></div>
+                        </div>
 
-                    {/* Product List */}
-                    <h4 className="font-semibold text-gray-700 mb-2">Danh sách sản phẩm</h4>
-                    <div className="overflow-x-auto border rounded-lg">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50 text-gray-600">
-                                <tr>
-                                    <th className="p-2 text-left">Mã sp (sku)</th>
-                                    <th className="p-2 text-left">Tên sản phẩm</th>
-                                    <th className="p-2 text-center">Đơn vị</th>
-                                    <th className="p-2 text-right">Số lượng</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                                {item.items.map((transferItem) => (
-                                    <tr key={transferItem.id}>
-                                        <td className="p-2">{transferItem.product.sku}</td>
-                                        <td className="p-2 font-medium">{transferItem.product.name}</td>
-                                        <td className="p-2 text-center">{transferItem.product.unit}</td>
-                                        <td className="p-2 text-right font-semibold tabular-nums">{transferItem.quantity.toLocaleString('vi-VN')}</td>
+                        {/* Product List */}
+                        <h4 className="font-semibold text-gray-700 mb-2">Danh sách sản phẩm</h4>
+                        <div className="overflow-x-auto border rounded-lg">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-50 text-gray-600">
+                                    <tr>
+                                        <th className="p-2 text-left">Mã sp (sku)</th>
+                                        <th className="p-2 text-left">Tên sản phẩm</th>
+                                        <th className="p-2 text-center">Đơn vị</th>
+                                        <th className="p-2 text-right">Số lượng</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {item.items.map((transferItem) => (
+                                        <tr key={transferItem.id}>
+                                            <td className="p-2">{transferItem.product.sku}</td>
+                                            <td className="p-2 font-medium">{transferItem.product.name}</td>
+                                            <td className="p-2 text-center">{transferItem.product.unit}</td>
+                                            <td className="p-2 text-right font-semibold tabular-nums">{transferItem.quantity.toLocaleString('vi-VN')}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-                 <div className="border-t p-4 flex justify-end items-center bg-gray-50 rounded-b-lg space-x-2">
-                    {isAdmin && (
-                        <button 
-                            onClick={() => setShowHistory(true)} 
-                            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 mr-auto"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-gray-500">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                            </svg>
-                            Lịch sử
+                    <div className="border-t p-4 flex justify-end items-center bg-gray-50 rounded-b-lg space-x-2">
+                        {isAdmin && (
+                            <button 
+                                onClick={() => setShowHistory(true)} 
+                                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 mr-auto whitespace-nowrap"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-gray-500">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                </svg>
+                                Lịch sử
+                            </button>
+                        )}
+                        <button onClick={() => onEditClick(item)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">
+                            <EditIcon className="w-4 h-4" /> Sửa
                         </button>
-                    )}
-                    <button onClick={() => onEditClick(item)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
-                        <EditIcon className="w-4 h-4" /> Sửa
-                    </button>
-                    <button onClick={() => onDeleteClick(item)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white text-red-600 border border-red-200 rounded-md hover:bg-red-50">
-                        <DeleteIcon className="w-4 h-4" /> Xóa
-                    </button>
-                    {item.status === 'PENDING' && (
-                        <button onClick={() => onConfirm(item.id)} className="px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700">
-                            Xác nhận Hoàn thành
+                        <button onClick={() => onDeleteClick(item)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white text-red-600 border border-red-200 rounded-md hover:bg-red-50 whitespace-nowrap">
+                            <DeleteIcon className="w-4 h-4" /> Xóa
                         </button>
-                    )}
-                    <button onClick={() => setIsPrinting(true)} className="px-3 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">In phiếu</button>
-                    <button onClick={onClose} className="px-3 py-2 text-sm font-medium bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Đóng</button>
+                        {item.status === 'PENDING' && (
+                            <button onClick={() => onConfirm(item.id)} className="px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 whitespace-nowrap">
+                                Xác nhận Hoàn thành
+                            </button>
+                        )}
+                        <button onClick={() => setIsPrinting(true)} className="px-3 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">In phiếu</button>
+                        <button onClick={onClose} className="px-3 py-2 text-sm font-medium bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 whitespace-nowrap">Đóng</button>
+                    </div>
                 </div>
             </div>
             {isPrinting && createPortal(
@@ -186,7 +188,7 @@ const DetailModal = ({ item, onClose, onConfirm, onEditClick, onDeleteClick }: {
                     recordCode={item.code}
                 />
             )}
-        </div>
+        </>
     );
 };
 

@@ -93,7 +93,7 @@ const DetailModal = ({ item, onClose, onEditClick, onDeleteClick }: { item: Scra
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" onClick={onClose}>
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center border-b p-4">
                     <h3 className="text-lg font-semibold text-gray-800">Chi tiết phiếu hủy hàng</h3>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">&times;</button>
@@ -117,7 +117,7 @@ const DetailModal = ({ item, onClose, onEditClick, onDeleteClick }: { item: Scra
                     {isAdmin && (
                         <button 
                             onClick={() => setShowHistory(true)} 
-                            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 mr-auto"
+                            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 mr-auto whitespace-nowrap"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-gray-500">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -125,15 +125,15 @@ const DetailModal = ({ item, onClose, onEditClick, onDeleteClick }: { item: Scra
                             Lịch sử
                         </button>
                     )}
-                    <button onClick={() => setIsPrinting(true)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-lg hover:bg-[#0052a3]">
+                    <button onClick={() => setIsPrinting(true)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-lg hover:bg-[#0052a3] whitespace-nowrap">
                         In phiếu
                     </button>
-                    <button onClick={handleExport} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-green-100 text-green-700 border border-green-200 rounded-lg hover:bg-green-200">
+                    <button onClick={handleExport} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-green-100 text-green-700 border border-green-200 rounded-lg hover:bg-green-200 whitespace-nowrap">
                         <ExportIcon className="w-4 h-4" /> Xuất file
                     </button>
-                    <button onClick={() => onEditClick(item)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"><EditIcon className="w-4 h-4" /> Sửa</button>
-                    <button onClick={() => onDeleteClick(item)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50"><DeleteIcon className="w-4 h-4" /> Xóa</button>
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Đóng</button>
+                    <button onClick={() => onEditClick(item)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap"><EditIcon className="w-4 h-4" /> Sửa</button>
+                    <button onClick={() => onDeleteClick(item)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 whitespace-nowrap"><DeleteIcon className="w-4 h-4" /> Xóa</button>
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 whitespace-nowrap">Đóng</button>
                 </div>
             </div>
             {isPrinting && createPortal(

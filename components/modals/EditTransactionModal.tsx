@@ -211,10 +211,10 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ isOpen, onC
                         </div>
                     </div>
                     <div className="border-t p-4 flex justify-end items-center bg-gray-50 rounded-b-lg gap-2">
-                        <button type="button" onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+                        <button type="button" onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">
                             Hủy
                         </button>
-                        <button type="submit" className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3]">
+                        <button type="submit" className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] whitespace-nowrap">
                             Lưu thay đổi
                         </button>
                     </div>

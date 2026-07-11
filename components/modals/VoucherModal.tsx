@@ -1093,16 +1093,16 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                     </div>
                 </div>
                 <div className="border-t p-4 flex justify-end items-center bg-gray-50 rounded-b-lg gap-2">
-                    <button type="button" onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+                    <button type="button" onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">
                         Hủy
                     </button>
-                    <button type="button" onClick={handleSaveDraft} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+                    <button type="button" onClick={handleSaveDraft} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">
                         Lưu tạm
                     </button>
-                    <button type="button" onClick={() => handleConfirmIncomeExpense(true)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3]">
+                    <button type="button" onClick={() => handleConfirmIncomeExpense(true)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] whitespace-nowrap">
                         Xác nhận & In
                     </button>
-                    <button type="button" onClick={() => handleConfirmIncomeExpense(false)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3]">
+                    <button type="button" onClick={() => handleConfirmIncomeExpense(false)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] whitespace-nowrap">
                         Xác nhận
                     </button>
                 </div>
@@ -1370,20 +1370,20 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                 </div>
             </div>
             <div className="border-t p-4 flex justify-between items-center bg-gray-50 rounded-b-lg">
-                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-green-600 text-white border border-green-700 rounded-md hover:bg-green-700">
+                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-green-600 text-white border border-green-700 rounded-md hover:bg-green-700 whitespace-nowrap">
                     <ExcelIcon className="w-4 h-4" /> Xác nhận & Xuất Excel
                 </button>
                 <div className="flex items-center gap-2">
-                    <button onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+                    <button onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">
                         Hủy
                     </button>
-                    <button type="button" onClick={handleSaveDraft} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+                    <button type="button" onClick={handleSaveDraft} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">
                         Lưu tạm
                     </button>
-                    <button onClick={() => handleConfirm(true)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3]">
+                    <button onClick={() => handleConfirm(true)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] whitespace-nowrap">
                         Xác nhận & In
                     </button>
-                    <button onClick={() => handleConfirm(false)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3]">
+                    <button onClick={() => handleConfirm(false)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] whitespace-nowrap">
                         Xác nhận
                     </button>
                 </div>
@@ -1842,13 +1842,13 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                     {renderPreview()}
                 </div>
                 <div className="border-t p-4 flex justify-end items-center bg-gray-50 rounded-b-lg gap-2">
-                    <button onClick={handleDebtNoticeExport} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-green-600 text-white border border-green-700 rounded-md hover:bg-green-700">
+                    <button onClick={handleDebtNoticeExport} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-green-600 text-white border border-green-700 rounded-md hover:bg-green-700 whitespace-nowrap">
                         <ExcelIcon className="w-4 h-4" /> Xuất Excel
                     </button>
-                    <button onClick={() => handleConfirm(true)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3]">
+                    <button onClick={() => handleConfirm(true)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] whitespace-nowrap">
                         In thông báo
                     </button>
-                    <button onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+                    <button onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">
                         Đóng
                     </button>
                 </div>
@@ -2009,10 +2009,10 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                     </fieldset>
                 </div>
                 <div className="border-t p-4 flex justify-end items-center bg-gray-50 rounded-b-lg gap-2">
-                    <button type="button" onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Hủy</button>
-                    <button type="button" onClick={handleSaveDraft} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Lưu tạm</button>
-                    <button type="button" onClick={() => handleConfirm(true)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3]">Xác nhận & In</button>
-                    <button type="button" onClick={() => handleConfirm(false)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3]">Xác nhận</button>
+                    <button type="button" onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">Hủy</button>
+                    <button type="button" onClick={handleSaveDraft} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">Lưu tạm</button>
+                    <button type="button" onClick={() => handleConfirm(true)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] whitespace-nowrap">Xác nhận & In</button>
+                    <button type="button" onClick={() => handleConfirm(false)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] whitespace-nowrap">Xác nhận</button>
                 </div>
             </>
         );
@@ -2132,16 +2132,16 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                 </button>
             </div>
             <div className="border-t p-4 flex justify-end items-center bg-gray-50 rounded-b-lg gap-2">
-                <button onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+                <button onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">
                     Hủy
                 </button>
-                <button type="button" onClick={handleSaveDraft} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+                <button type="button" onClick={handleSaveDraft} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">
                     Lưu tạm
                 </button>
-                <button onClick={() => handleConfirm(true, OrderStatus.PENDING)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3]">
+                <button onClick={() => handleConfirm(true, OrderStatus.PENDING)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] whitespace-nowrap">
                     Xác nhận & In
                 </button>
-                <button onClick={() => handleConfirm(false, OrderStatus.PENDING)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3]">
+                <button onClick={() => handleConfirm(false, OrderStatus.PENDING)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] whitespace-nowrap">
                     Xác nhận
                 </button>
             </div>
@@ -2243,16 +2243,16 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                 </div>
             </div>
             <div className="border-t p-4 flex justify-end items-center bg-gray-50 rounded-b-lg gap-2">
-                <button type="button" onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+                <button type="button" onClick={handleRequestClose} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">
                     Hủy
                 </button>
-                <button type="button" onClick={handleSaveDraft} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
+                <button type="button" onClick={handleSaveDraft} className="px-4 py-2 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap">
                     Lưu tạm
                 </button>
-                <button onClick={() => handleConfirm(true)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3]">
+                <button onClick={() => handleConfirm(true)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] whitespace-nowrap">
                     Xác nhận & In
                 </button>
-                <button onClick={() => handleConfirm(false)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3]">
+                <button onClick={() => handleConfirm(false)} className="px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] whitespace-nowrap">
                     Xác nhận
                 </button>
             </div>

@@ -132,7 +132,7 @@ export const RecordHistoryModal: React.FC<RecordHistoryModalProps> = ({
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-[100] flex justify-end" onClick={onClose}>
             <div 
-                className="bg-white h-full w-full max-w-xl shadow-2xl flex flex-col"
+                className="bg-white h-full w-full max-w-2xl shadow-2xl flex flex-col"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Modal Header */}
