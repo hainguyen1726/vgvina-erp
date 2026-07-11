@@ -7,7 +7,20 @@
 -- Create a generic audit log function
 CREATE OR REPLACE FUNCTION audit_log_changes()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_user_id BIGINT;
+    v_user_email TEXT;
 BEGIN
+    -- Get current authenticated user's email from Supabase Auth
+    IF auth.uid() IS NOT NULL THEN
+        SELECT email INTO v_user_email FROM auth.users WHERE id = auth.uid();
+        
+        -- Map to vgvina_users.id using email
+        IF v_user_email IS NOT NULL THEN
+            SELECT id INTO v_user_id FROM public.vgvina_users WHERE email = v_user_email LIMIT 1;
+        END IF;
+    END IF;
+
     -- For DELETE operations
     IF (TG_OP = 'DELETE') THEN
         INSERT INTO vgvina_audit_logs (
@@ -23,7 +36,7 @@ BEGIN
             'DELETE',
             row_to_json(OLD),
             NULL,
-            NULL -- TODO: Get current user_id from session
+            v_user_id
         );
         RETURN OLD;
     
@@ -42,7 +55,7 @@ BEGIN
             'UPDATE',
             row_to_json(OLD),
             row_to_json(NEW),
-            NULL -- TODO: Get current user_id from session
+            v_user_id
         );
         RETURN NEW;
     
@@ -61,7 +74,7 @@ BEGIN
             'CREATE',
             NULL,
             row_to_json(NEW),
-            NULL -- TODO: Get current user_id from session
+            v_user_id
         );
         RETURN NEW;
     END IF;

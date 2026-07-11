@@ -57,6 +57,17 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, 
     );
 };
 
+const FIELD_NAME_MAP: Record<string, string> = {
+    'sku': 'Mã SKU',
+    'name': 'Tên sản phẩm',
+    'unit': 'Đơn vị tính',
+    'price': 'Đơn giá',
+    'quantity': 'Số lượng',
+    'category_id': 'Danh mục',
+    'notes': 'Ghi chú',
+    'facility_id': 'Chi nhánh/Kho'
+};
+
 interface EditHistoryModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -159,10 +170,10 @@ const EditHistoryModal: React.FC<EditHistoryModalProps> = ({ isOpen, onClose, pr
                                                             const newVal = log.newValues?.[key];
                                                             if (oldVal === newVal) return null;
                                                             return (
-                                                                <tr key={key}>
-                                                                    <td className="border p-2 font-medium text-gray-600">{key}</td>
-                                                                    <td className="border p-2 text-right text-gray-500 line-through tabular-nums">{oldVal !== null && oldVal !== undefined ? String(oldVal) : '-'}</td>
-                                                                    <td className="border p-2 text-right text-blue-700 font-semibold tabular-nums">{newVal !== null && newVal !== undefined ? String(newVal) : '-'}</td>
+                                                                <tr key={key} className="bg-red-50/30">
+                                                                    <td className="border p-2 font-normal text-gray-700">{FIELD_NAME_MAP[key] || key}</td>
+                                                                    <td className="border p-2 text-right text-gray-500 line-through tabular-nums font-normal">{oldVal !== null && oldVal !== undefined ? String(oldVal) : '-'}</td>
+                                                                    <td className="border p-2 text-right text-red-600 font-normal tabular-nums">{newVal !== null && newVal !== undefined ? String(newVal) : '-'}</td>
                                                                 </tr>
                                                             );
                                                         })}
