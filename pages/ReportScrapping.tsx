@@ -13,6 +13,7 @@ import { useBranch } from '../contexts/BranchContext';
 import { DeleteIcon, PlusIcon, ExportIcon, EditIcon, ArrowsUpDownIcon, ArrowUpIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/icons/Icons';
 import { useNotification } from '../contexts/NotificationContext';
 import { formatDate } from '../src/utils/dateUtils';
+import { RecordHistoryModal } from '../components/modals/RecordHistoryModal';
 
 // Confirmation Modal
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, title: string, message: string }) => {
@@ -42,7 +43,12 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }: { isO
 // Detail Modal
 const DetailModal = ({ item, onClose, onEditClick, onDeleteClick }: { item: ScrappingVoucher | null, onClose: () => void, onEditClick: (item: ScrappingVoucher) => void, onDeleteClick: (item: ScrappingVoucher) => void }) => {
     const { showNotification } = useNotification();
+    const { currentUser } = useBranch();
+    const [showHistory, setShowHistory] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
+
+    const isAdmin = currentUser?.is_admin === true ||
+        ['admin', 'Admin', 'Quản trị viên', 'Kế toán HO', 'Ban Lãnh đạo', 'Quản lý Chi nhánh'].includes(currentUser?.role || '');
 
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -108,6 +114,17 @@ const DetailModal = ({ item, onClose, onEditClick, onDeleteClick }: { item: Scra
                     </div>
                 </div>
                 <div className="border-t p-4 flex justify-end items-center bg-gray-50 rounded-b-lg space-x-2">
+                    {isAdmin && (
+                        <button 
+                            onClick={() => setShowHistory(true)} 
+                            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 mr-auto"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-gray-500">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                            Lịch sử
+                        </button>
+                    )}
                     <button onClick={() => setIsPrinting(true)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-[#0066cc] text-white rounded-lg hover:bg-[#0052a3]">
                         In phiếu
                     </button>
@@ -124,6 +141,15 @@ const DetailModal = ({ item, onClose, onEditClick, onDeleteClick }: { item: Scra
                     <PrintVoucherTemplate voucherType="scrapping-voucher" data={getPrintData()} />
                 </div>,
                 document.body
+            )}
+            {showHistory && (
+                <RecordHistoryModal
+                    isOpen={showHistory}
+                    onClose={() => setShowHistory(false)}
+                    tableName="vgvina_scrapping_vouchers"
+                    recordId={String(item.id)}
+                    recordCode={item.code}
+                />
             )}
         </div>
     );

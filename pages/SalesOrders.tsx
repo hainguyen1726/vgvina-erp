@@ -15,6 +15,7 @@ import { formatDate } from '../src/utils/dateUtils';
 import { excelUtils } from '../src/utils/excelUtils';
 import { useNotification } from '../contexts/NotificationContext';
 import { useBranch } from '../contexts/BranchContext';
+import { RecordHistoryModal } from '../components/modals/RecordHistoryModal';
 
 type OrderType = SalesOrder | PurchaseOrder;
 
@@ -72,7 +73,11 @@ const getStatusBadge = (status: OrderStatus) => {
 
 // Modal Component for Order Details
 export const SalesOrderDetailModal = ({ item, onClose, onEditClick, onDeleteClick, onReturnClick }: { item: OrderType | null, onClose: () => void, onEditClick: (item: OrderType) => void, onDeleteClick: (item: OrderType) => void, onReturnClick?: (item: OrderType) => void }) => {
-  const { can } = useBranch();
+  const { can, currentUser } = useBranch();
+  const [showHistory, setShowHistory] = useState(false);
+  const isAdmin = currentUser?.is_admin === true ||
+    ['admin', 'Admin', 'Quản trị viên', 'Kế toán HO', 'Ban Lãnh đạo', 'Quản lý Chi nhánh'].includes(currentUser?.role || '');
+
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     if (item) window.addEventListener('keydown', handleEsc);
@@ -231,6 +236,17 @@ export const SalesOrderDetailModal = ({ item, onClose, onEditClick, onDeleteClic
             <button onClick={handleExport} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-green-100 text-green-700 border border-green-200 rounded-lg hover:bg-green-200">
               <ExportIcon className="w-4 h-4" /> Xuất file
             </button>
+            {isAdmin && (
+              <button 
+                onClick={() => setShowHistory(true)} 
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 mr-auto"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-gray-500">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                Lịch sử
+              </button>
+            )}
             {onEditClick && can(isSalesOrder ? 'sales_orders' : 'purchase_orders', 'edit') && (
               <button onClick={() => onEditClick(item)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50">
                 <EditIcon className="w-4 h-4" /> Sửa
@@ -251,6 +267,16 @@ export const SalesOrderDetailModal = ({ item, onClose, onEditClick, onDeleteClic
           <PrintVoucherTemplate voucherType={isSalesOrder ? 'delivery-note' : 'purchase-order'} data={getPrintData()} />
         </div>,
         document.body
+      )}
+
+      {showHistory && (
+        <RecordHistoryModal
+          isOpen={showHistory}
+          onClose={() => setShowHistory(false)}
+          tableName={isSalesOrder ? 'vgvina_sales_orders' : 'vgvina_purchase_orders'}
+          recordId={String(item.id)}
+          recordCode={item.code}
+        />
       )}
     </>
   );

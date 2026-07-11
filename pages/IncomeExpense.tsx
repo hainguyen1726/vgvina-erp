@@ -18,6 +18,7 @@ import { ThuChiIcon, PlusIcon, ExportIcon, ImportIcon, EditIcon, DeleteIcon, Arr
 import { useNotification } from '../contexts/NotificationContext';
 import { useBranch } from '../contexts/BranchContext';
 import SearchableSelect from '../components/ui/SearchableSelect';
+import { RecordHistoryModal } from '../components/modals/RecordHistoryModal';
 
 // Confirmation Modal Component
 interface ConfirmationModalProps {
@@ -59,7 +60,11 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, 
 
 // Modal Component for Transaction Details
 export const IncomeExpenseDetailModal = ({ item, onClose, onEditClick, onDeleteClick }: { item: FinancialTransaction | null, onClose: () => void, onEditClick: (item: FinancialTransaction) => void, onDeleteClick: (item: FinancialTransaction) => void }) => {
-  const { can } = useBranch();
+  const { can, currentUser } = useBranch();
+  const [showHistory, setShowHistory] = useState(false);
+  const isAdmin = currentUser?.is_admin === true ||
+    ['admin', 'Admin', 'Quản trị viên', 'Kế toán HO', 'Ban Lãnh đạo', 'Quản lý Chi nhánh'].includes(currentUser?.role || '');
+
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     if (item) window.addEventListener('keydown', handleEsc);
@@ -154,6 +159,17 @@ export const IncomeExpenseDetailModal = ({ item, onClose, onEditClick, onDeleteC
               <ExportIcon className="w-4 h-4" />
               <span className="hidden sm:inline">Xuất file</span>
             </button>
+            {isAdmin && (
+              <button 
+                onClick={() => setShowHistory(true)} 
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 mr-auto"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-gray-500">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                Lịch sử
+              </button>
+            )}
             {onEditClick && can('financial_transactions', 'edit') && (
               <button onClick={() => onEditClick(item)} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50">
                 <EditIcon className="w-4 h-4" /> Sửa
@@ -174,6 +190,16 @@ export const IncomeExpenseDetailModal = ({ item, onClose, onEditClick, onDeleteC
           <PrintVoucherTemplate voucherType="income-expense-voucher" data={getPrintData()} />
         </div>,
         document.body
+      )}
+
+      {showHistory && (
+        <RecordHistoryModal
+          isOpen={showHistory}
+          onClose={() => setShowHistory(false)}
+          tableName="vgvina_financial_transactions"
+          recordId={String(item.id)}
+          recordCode={item.code}
+        />
       )}
     </>
   );

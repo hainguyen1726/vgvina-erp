@@ -14,6 +14,7 @@ import { ReturnIcon, PlusIcon, ExportIcon, EditIcon, DeleteIcon, ArrowsUpDownIco
 import { formatDate } from '../src/utils/dateUtils';
 import { useNotification } from '../contexts/NotificationContext';
 import { excelUtils } from '../src/utils/excelUtils';
+import { RecordHistoryModal } from '../components/modals/RecordHistoryModal';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -76,6 +77,10 @@ const Returns: React.FC = () => {
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
   const [visibleColumns, setVisibleColumns] = useState(["code", "customer_name", "return_date", "total_amount", "reason", "handling_method", "handler_user"]);
   const [timeFilter, setTimeFilter] = useState<{ filter: string; dates?: { from: Date; to: Date } }>({ filter: 'All time' });
+  const [historyModal, setHistoryModal] = useState<{ isOpen: boolean; recordId: string; recordCode: string } | null>(null);
+
+  const isAdmin = currentUser?.is_admin === true ||
+    ['admin', 'Admin', 'Quản trị viên', 'Kế toán HO', 'Ban Lãnh đạo', 'Quản lý Chi nhánh'].includes(currentUser?.role || '');
 
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -354,6 +359,17 @@ const Returns: React.FC = () => {
                                   <button onClick={() => handleExportVoucher(item)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-100 text-green-700 border border-green-200 rounded-lg hover:bg-green-200 transition-colors">
                                     Xuất file
                                   </button>
+                                  {isAdmin && (
+                                    <button 
+                                      onClick={() => setHistoryModal({ isOpen: true, recordId: String(item.id), recordCode: item.code })} 
+                                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 text-gray-500">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                      </svg>
+                                      Lịch sử
+                                    </button>
+                                  )}
                                   <button onClick={() => handleEditClick(item)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                                     Sửa
                                   </button>
@@ -590,6 +606,16 @@ const Returns: React.FC = () => {
           }} />
         </div>,
         document.body
+      )}
+
+      {historyModal && (
+        <RecordHistoryModal
+          isOpen={historyModal.isOpen}
+          onClose={() => setHistoryModal(null)}
+          tableName="vgvina_return_vouchers"
+          recordId={historyModal.recordId}
+          recordCode={historyModal.recordCode}
+        />
       )}
     </>
   );

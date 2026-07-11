@@ -23,6 +23,7 @@ import { SalesOrderDetailModal } from './SalesOrders';
 import { IncomeExpenseDetailModal } from './IncomeExpense';
 import VoucherModal from '../components/modals/VoucherModal';
 import EditTransactionModal from '../components/modals/EditTransactionModal';
+import { RecordHistoryModal } from '../components/modals/RecordHistoryModal';
 
 const getStatusBadge = (status: DebtStatus) => {
   switch (status) {
@@ -39,6 +40,11 @@ const getStatusBadge = (status: DebtStatus) => {
 
 // Modal Component for Debt Details
 const DetailModal = ({ item, onClose, onEditClick, onDeleteClick }: { item: DebtType | null, onClose: () => void, onEditClick: (item: DebtType) => void, onDeleteClick: (item: DebtType) => void }) => {
+  const { currentUser } = useBranch();
+  const [showHistory, setShowHistory] = useState(false);
+  const isAdmin = currentUser?.is_admin === true ||
+    ['admin', 'Admin', 'Quản trị viên', 'Kế toán HO', 'Ban Lãnh đạo', 'Quản lý Chi nhánh'].includes(currentUser?.role || '');
+
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     if (item) window.addEventListener('keydown', handleEsc);
@@ -265,6 +271,17 @@ const DetailModal = ({ item, onClose, onEditClick, onDeleteClick }: { item: Debt
             </div>
           </div>
           <div className="border-t p-4 flex flex-wrap sm:flex-nowrap justify-between gap-2 bg-gray-50 rounded-b-lg">
+            {isAdmin && (
+              <button 
+                onClick={() => setShowHistory(true)} 
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs sm:text-sm font-medium bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-gray-500">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                Lịch sử
+              </button>
+            )}
             <button onClick={() => setIsPrinting(true)} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs sm:text-sm font-medium bg-[#0066cc] text-white rounded-lg hover:bg-[#0052a3]">
               In phiếu
             </button>
@@ -295,6 +312,16 @@ const DetailModal = ({ item, onClose, onEditClick, onDeleteClick }: { item: Debt
           <PrintVoucherTemplate voucherType="debt-notice" data={getPrintData()} />
         </div>,
         document.body
+      )}
+
+      {showHistory && (
+        <RecordHistoryModal
+          isOpen={showHistory}
+          onClose={() => setShowHistory(false)}
+          tableName="vgvina_debt_transactions"
+          recordId={String(item.id)}
+          recordCode={item.code || `CN-${item.partner_name}`}
+        />
       )}
     </>
   );
