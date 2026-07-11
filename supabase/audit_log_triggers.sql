@@ -81,7 +81,9 @@ BEGIN
     
     RETURN NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, extensions;
 
 -- ============================================
 -- CREATE TRIGGERS FOR IMPORTANT TABLES
