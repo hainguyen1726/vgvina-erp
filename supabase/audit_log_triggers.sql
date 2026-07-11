@@ -153,6 +153,19 @@ CREATE TRIGGER audit_internal_transfers_changes
     AFTER INSERT OR UPDATE OR DELETE ON vgvina_internal_transfers
     FOR EACH ROW EXECUTE FUNCTION audit_log_changes();
 
+-- Prevent any manual or programmatic updates/deletes to audit logs
+CREATE OR REPLACE FUNCTION prevent_audit_log_modification()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'Cannot modify or delete audit log entries. This table is write-once and read-only.';
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS enforce_read_only_audit ON vgvina_audit_logs;
+CREATE TRIGGER enforce_read_only_audit
+    BEFORE UPDATE OR DELETE ON vgvina_audit_logs
+    FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_modification();
+
 -- ============================================
 -- NOTES
 -- ============================================
@@ -165,3 +178,4 @@ CREATE TRIGGER audit_internal_transfers_changes
 --    ALTER TABLE table_name DISABLE TRIGGER trigger_name;
 -- 4. To enable it again:
 --    ALTER TABLE table_name ENABLE TRIGGER trigger_name;
+
