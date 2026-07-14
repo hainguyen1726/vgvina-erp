@@ -58,6 +58,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
           { name: 'Tổng quan', path: '/admin' },
           { name: 'Tài khoản', path: '/admin/tai-khoan' },
           { name: 'Hạng mục', path: '/admin/hang-muc' },
+          { name: 'Danh mục sản phẩm', path: '/admin/danh-muc-san-pham' },
           { name: 'Đối tượng', path: '/admin/doi-tuong' },
           { name: 'Quản lý thành viên', path: '/admin/thanh-vien' }
         ]
