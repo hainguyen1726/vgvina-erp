@@ -12,41 +12,44 @@ description: Hướng dẫn đồng bộ mã nguồn dự án vgvina-erp và dep
 ## 🔴 SAFE START PROTOCOL — BẮT BUỘC THỰC HIỆN TRƯỚC MỌI THAO TÁC
 
 > [!IMPORTANT]
-> **Antigravity PHẢI tự động chạy các lệnh dưới đây mỗi khi bắt đầu làm việc với dự án vgvina-erp, kể cả khi user không yêu cầu.** Mục đích: đồng bộ code từ Hermes Agent có thể đã thay đổi trên VPS.
+> **Antigravity BẮT BUỘC phải tự động chạy các lệnh dưới đây khi bắt đầu làm việc và KIỂM TRA PULL THÀNH CÔNG.** Mục đích: đồng bộ tuyệt đối code từ Hermes Agent trên VPS, tránh hoàn toàn conflict.
 
-### Antigravity — Các bước bắt buộc khi bắt đầu phiên làm việc:
+### Antigravity — Quy trình kiểm tra pull bắt buộc:
 
+1. **Thực hiện Fetch & Check:**
 ```powershell
-# Bước 1: Lấy toàn bộ thay đổi từ GitHub (bao gồm nhánh Hermes)
+# Lấy thay đổi mới từ GitHub
 git fetch origin
+```
 
-# Bước 2: Kiểm tra xem Hermes có push nhánh mới không
+2. **Thực hiện Pull & Xác thực:**
+```powershell
+# Thực hiện pull nhánh main
+git pull origin main
+```
+*   **BẮT BUỘC KIỂM TRA:** Xem kết quả `git pull`. 
+    *   Nếu trả về `Already up to date` hoặc pull thành công (exit code = 0) -> Tiếp tục bước 3.
+    *   Nếu thất bại (exit code != 0 do lỗi mạng, phân quyền SSH, hoặc conflict):
+        *   *Lỗi SSH/Permission:* Chạy `gh auth login` và `gh auth setup-git` để tự động cấu hình hoặc tạo SSH key qua GitHub CLI.
+        *   *Lỗi Conflict:* Chạy `git status` để xem file bị xung đột. Thực hiện `git stash` tạm thời, pull lại, sau đó `git stash pop` và giải quyết conflict thủ công.
+        *   **LẶP LẠI bước pull cho đến khi thành công mới được chuyển sang bước tiếp theo.**
+
+3. **Kiểm tra trạng thái nhánh Hermes:**
+```powershell
+# Kiểm tra xem Hermes có push nhánh mới chưa merge không
 git branch -r | Select-String "dev/hermes"
-
-# Bước 3: Kiểm tra trạng thái local
-git status
-git log origin/main..HEAD --oneline  # Xem local có commit chưa push không
-git log HEAD..origin/main --oneline  # Xem remote có commit local chưa có không
 ```
 
 **Xử lý theo kết quả:**
 
 | Tình huống | Hành động |
 |---|---|
-| Có nhánh `dev/hermes-*` chưa được merge | Merge vào `main` local trước khi làm việc |
-| Local chậm hơn remote (`origin/main`) | `git pull origin main` trước |
-| Local và remote đồng bộ | Tiến hành công việc bình thường |
-| Local có commit chưa push | Push lên trước hoặc ghi nhận để xử lý sau |
-
-```powershell
-# Nếu có nhánh Hermes cần merge:
-git merge origin/dev/hermes-YYYYMMDD-HHMM
-git push origin main
-# → GitHub Actions sẽ tự động build và deploy
-```
+| Có nhánh `dev/hermes-*` chưa gộp | Merge vào `main` local: `git merge origin/dev/hermes-*; git push origin main` |
+| Local chậm hơn remote | Chạy lại bước 2 (Pull) đến khi hoàn tất |
+| Đã đồng bộ | Bắt đầu viết code bình thường |
 
 > [!WARNING]
-> **KHÔNG bao giờ bắt đầu sửa code khi chưa chạy Safe Start Protocol.** Bỏ qua bước này có thể gây conflict với code của Hermes Agent trên VPS.
+> **KHÔNG bao giờ sửa code nếu lệnh `git pull` chưa hoàn thành thành công 100%.** Bỏ qua kiểm tra này sẽ bị kỷ luật và gây hỏng commit.
 
 ---
 

@@ -9,7 +9,30 @@ $DOMAIN = "baocao.vgvina.com"
 
 Write-Host "Starting deployment process (TKMG-AMZ Flow)..." -ForegroundColor Cyan
 
-# 1. Push code to GitHub
+# 1. Sync local with GitHub (Pull & Check)
+Write-Host "Syncing with GitHub..." -ForegroundColor Yellow
+
+$pullSuccess = $false
+$maxRetries = 3
+$retryCount = 0
+
+while (-not $pullSuccess -and $retryCount -lt $maxRetries) {
+    git pull origin main
+    if ($LASTEXITCODE -eq 0) {
+        $pullSuccess = $true
+    } else {
+        $retryCount++
+        Write-Host "WARNING: Git pull failed. Retrying ($retryCount/$maxRetries) in 3 seconds..." -ForegroundColor DarkYellow
+        Start-Sleep -Seconds 3
+    }
+}
+
+if (-not $pullSuccess) {
+    Write-Host "ERROR: Git pull failed! Please check connection, SSH key or resolve conflicts manually." -ForegroundColor Red
+    exit 1
+}
+
+# 2. Push code to GitHub
 Write-Host "Pushing latest changes to GitHub..." -ForegroundColor Yellow
 git push origin main
 
