@@ -168,7 +168,11 @@ export const debtService = {
         }
 
         // Cash payments prefix code is usually PT- (Income) or PC- (Expense)
-        const realPayments = (txns || []).filter(t => t.code.startsWith('PT-') || t.code.startsWith('PC-'));
+        // Chỉ lấy các phiếu thu/chi thực tế độc lập (không có related_order_id) để cấn trừ công nợ
+        const realPayments = (txns || []).filter(t => 
+            (t.code.startsWith('PT-') || t.code.startsWith('PC-')) && 
+            !t.related_order_id
+        );
 
         // 5. Apply payments to debts using FIFO
         realPayments.forEach(pay => {
@@ -224,6 +228,37 @@ export const debtService = {
 
                 if (updateError) {
                     console.error(`[reconcilePartnerDebts] Error updating debt ID ${debt.id}:`, updateError);
+                }
+
+                // Cập nhật ngược lại trạng thái thanh toán và số tiền đã thanh toán của đơn hàng bán/mua tương ứng
+                if (debt.related_order_id) {
+                    const orderId = debt.related_order_id;
+                    const isSales = debt.type === 'RECEIVABLE';
+                    const targetTable = isSales ? 'vgvina_sales_orders' : 'vgvina_purchase_orders';
+                    
+                    try {
+                        const { data: orderData, error: fetchOrderError } = await supabase
+                            .from(targetTable)
+                            .select('total_amount, discount')
+                            .eq('id', orderId)
+                            .maybeSingle();
+                            
+                        if (!fetchOrderError && orderData) {
+                            const totalAmount = Number(orderData.total_amount) || 0;
+                            const discount = Number(orderData.discount) || 0;
+                            const newAmountPaid = totalAmount - discount - debt.currentAmount;
+                            
+                            await supabase
+                                .from(targetTable)
+                                .update({
+                                    amount_paid: newAmountPaid,
+                                    payment_status: debt.currentStatus
+                                })
+                                .eq('id', orderId);
+                        }
+                    } catch (err) {
+                        console.error(`[reconcilePartnerDebts] Failed to update order ${orderId} in ${targetTable}:`, err);
+                    }
                 }
             }
         }
