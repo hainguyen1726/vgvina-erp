@@ -227,5 +227,22 @@ export const debtService = {
                 }
             }
         }
+    },
+
+    async reconcileAllPartnersDebts(operatorName: string): Promise<void> {
+        const { data: partners, error } = await supabase.from('vgvina_partners').select('id');
+        if (error) {
+            console.error('[reconcileAllPartnersDebts] Error fetching partners:', error);
+            throw error;
+        }
+        if (!partners || partners.length === 0) return;
+
+        for (const p of partners) {
+            try {
+                await this.reconcilePartnerDebts(p.id, operatorName);
+            } catch (e) {
+                console.error(`[reconcileAllPartnersDebts] Failed for partner ${p.id}:`, e);
+            }
+        }
     }
 };

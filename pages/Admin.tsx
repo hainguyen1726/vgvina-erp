@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AccountIcon, CategoryIcon, DoiTacIcon, NguoiDungIcon, HistoryIcon } from '../components/icons/Icons';
+import { AccountIcon, CategoryIcon, DoiTacIcon, NguoiDungIcon, HistoryIcon, SyncIcon } from '../components/icons/Icons';
+import { debtService } from '../src/services/debtService';
+import { useBranch } from '../contexts/BranchContext';
+import { useNotification } from '../contexts/NotificationContext';
 
 const Admin: React.FC = () => {
+  const { currentUser } = useBranch();
+  const { showNotification } = useNotification();
+  const [isSyncing, setIsSyncing] = useState(false);
+
   const adminSections = [
     { name: 'Tài khoản', path: '/admin/tai-khoan', icon: <AccountIcon />, color: 'blue' },
     { name: 'Hạng mục', path: '/admin/hang-muc', icon: <CategoryIcon />, color: 'green' },
@@ -25,12 +32,33 @@ const Admin: React.FC = () => {
     teal: 'bg-teal-100 text-teal-600',
   };
 
+  const handleSyncAllDebts = async () => {
+    if (isSyncing) return;
+    const confirmSync = window.confirm(
+      'Bạn có chắc chắn muốn tính toán và cấn trừ lại toàn bộ công nợ của tất cả đối tác theo thứ tự FIFO? Quá trình này sẽ sửa lại toàn bộ số liệu công nợ cũ cho khớp với dòng tiền thực tế.'
+    );
+    if (!confirmSync) return;
+
+    try {
+      setIsSyncing(true);
+      showNotification('Bắt đầu đồng bộ và khớp công nợ toàn hệ thống...', 'info');
+      await debtService.reconcileAllPartnersDebts(currentUser?.name || 'Admin');
+      showNotification('Đồng bộ toàn bộ công nợ thành công!', 'success');
+    } catch (error: any) {
+      console.error('Error syncing all debts:', error);
+      showNotification('Đồng bộ công nợ thất bại: ' + error.message, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-900">Quản lý dữ liệu</h1>
         <p className="mt-2 text-lg text-gray-600">Chọn loại dữ liệu bạn muốn quản lý</p>
       </div>
+
       <div className="mt-12 grid grid-cols-3 gap-4 sm:gap-6">
         {adminSections.map((section) => (
           <Link
@@ -46,6 +74,43 @@ const Admin: React.FC = () => {
             </div>
           </Link>
         ))}
+      </div>
+
+      {/* Công cụ hệ thống (System Tools) */}
+      <div className="mt-10 border-t pt-8">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Công cụ hệ thống</h2>
+        <div className="bg-white rounded-xl shadow-md p-6 flex flex-col sm:flex-row items-center justify-between border border-gray-150">
+          <div className="mb-4 sm:mb-0 sm:mr-6 text-center sm:text-left">
+            <h3 className="font-semibold text-gray-800 flex items-center justify-center sm:justify-start">
+              <span className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0"><SyncIcon /></span>
+              Đồng bộ toàn bộ công nợ đối tác
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Quét toàn bộ hóa đơn và phiếu thu/chi trên hệ thống để tính toán, cấn trừ lại công nợ theo thứ tự FIFO (Vào trước Xuất trước).
+            </p>
+          </div>
+          <button
+            onClick={handleSyncAllDebts}
+            disabled={isSyncing}
+            className={`w-full sm:w-auto px-5 py-3 rounded-lg font-semibold text-white shadow-md transition-all duration-200 flex items-center justify-center ${
+              isSyncing
+                ? 'bg-blue-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg active:scale-95'
+            }`}
+          >
+            {isSyncing ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Đang xử lý...
+              </>
+            ) : (
+              '🔄 Đồng bộ ngay'
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
