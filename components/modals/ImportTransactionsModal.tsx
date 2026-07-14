@@ -30,7 +30,7 @@ export const ImportTransactionsModal: React.FC<ImportTransactionsModalProps> = (
   onSuccess,
 }) => {
   const { showNotification } = useNotification();
-  const { selectedFacilityId } = useBranch();
+  const { selectedFacilityId, currentUser } = useBranch();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loadingResources, setLoadingResources] = useState(false);
@@ -457,7 +457,10 @@ export const ImportTransactionsModal: React.FC<ImportTransactionsModalProps> = (
     try {
       // Process sequentially to prevent general account balance race conditions in Supabase
       for (const payload of parsedData) {
-        await transactionService.createFinancialTransaction(payload);
+        await transactionService.createFinancialTransaction({
+          ...payload,
+          operatorName: currentUser?.name || 'Hệ thống'
+        });
         count++;
         setImportProgress({ current: count, total: parsedData.length });
       }

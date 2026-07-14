@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { FinancialTransaction, TransactionType } from '../../types';
+import { debtService } from './debtService';
 
 export const transactionService = {
     async revertDebtTransactions(partnerId: string, type: 'INCOME' | 'EXPENSE', amount: number) {
@@ -242,6 +243,7 @@ export const transactionService = {
         assignedUserIds: string[];
         transactionDate: string;
         facilityId: string;
+        operatorName?: string;
     }) {
         // 1. Insert Transaction
         const { data: transaction, error: transactionError } = await supabase
@@ -256,7 +258,6 @@ export const transactionService = {
                 partner_id: payload.partnerId || null,
                 facility_id: payload.facilityId || null,
                 account_id: payload.accountId,
-                // We leave employee_id null in the main table or use the first one as primary
                 employee_id: payload.assignedUserIds.length > 0 ? payload.assignedUserIds[0] : null
             })
             .select()
@@ -270,74 +271,32 @@ export const transactionService = {
                 transaction_id: transaction.id,
                 employee_id: empId
             }));
+            await supabase.from('vgvina_transaction_assignees').insert(assignees);
+        }
 
-            const { error: assigneeError } = await supabase
-                .from('vgvina_transaction_assignees')
-                .insert(assignees);
+        // --- Update Cash Account Balance ---
+        const { data: account } = await supabase
+            .from('vgvina_accounts')
+            .select('balance')
+            .eq('id', payload.accountId)
+            .single();
 
-            if (assigneeError) {
-                console.error("Error inserting transaction assignees:", assigneeError);
-            }
+        if (account) {
+            const currentBalance = Number(account.balance) || 0;
+            const amt = Number(payload.amount) || 0;
+            const newBalance = payload.type === TransactionType.INCOME
+                ? currentBalance + amt
+                : currentBalance - amt;
+
+            await supabase.from('vgvina_accounts').update({ balance: newBalance }).eq('id', payload.accountId);
         }
 
         // 3. Auto-settle Debt if partnerId is provided
         if (payload.partnerId) {
-            // Determine debt type to settle
-            const debtType = payload.type === TransactionType.INCOME ? 'RECEIVABLE' : 'PAYABLE';
-            let totalSettledAmount = 0;
+            await debtService.reconcilePartnerDebts(payload.partnerId, payload.operatorName || 'Hệ thống');
+        }
 
-            // Fetch outstanding debts for this partner
-            const { data: debts, error: debtsError } = await supabase
-                .from('vgvina_debt_transactions')
-                .select('*')
-                .eq('partner_id', payload.partnerId)
-                .eq('type', debtType)
-                .in('status', ['UNPAID', 'PARTIALLY_PAID'])
-                .order('created_at', { ascending: true });
-
-            if (debtsError) {
-                console.error("Error fetching debts for settlement:", debtsError);
-            }
-
-            if (debts && debts.length > 0) {
-                let remainingPayment = Number(payload.amount);
-
-                for (const debt of debts) {
-                    if (remainingPayment <= 0) break;
-
-                    const debtAmount = Number(debt.amount);
-                    let updateData: any = {};
-
-                    if (remainingPayment >= debtAmount) {
-                        // Debt is fully paid
-                        updateData = {
-                            amount: 0,
-                            status: 'PAID'
-                        };
-                        remainingPayment -= debtAmount;
-                        totalSettledAmount += debtAmount;
-                    } else {
-                        // Debt is partially paid
-                        updateData = {
-                            amount: debtAmount - remainingPayment,
-                            status: 'PARTIALLY_PAID'
-                        };
-                        totalSettledAmount += remainingPayment;
-                        remainingPayment = 0;
-                    }
-
-                    const { error: updateError } = await supabase
-                        .from('vgvina_debt_transactions')
-                        .update(updateData)
-                        .eq('id', debt.id);
-
-                    if (updateError) {
-                        console.error(`Error updating debt ${debt.id}:`, updateError);
-                    }
-                }
-            }
-
-            // --- Log Settlement in TK KN / TK Nợ NCC for the full transaction amount ---
+        // --- Log Settlement in TK KN / TK Nợ NCC for the full transaction amount -----
             const settlementAmount = Number(payload.amount);
             if (settlementAmount > 0) {
                 const defaultDebtAccountName = payload.type === TransactionType.INCOME ? 'TK KN' : 'TK Nợ NCC';
@@ -398,7 +357,6 @@ export const transactionService = {
                 }
             }
             // --- End Log Settlement ---
-        }
 
         // 4. Update Account Balance
         if (payload.accountId) {

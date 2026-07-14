@@ -400,7 +400,7 @@ export const productService = {
             .select(`
                 quantity,
                 price,
-                product:product_id ( id, sku, name, unit, price ),
+                product:product_id ( id, sku, name, unit, price, category:vgvina_product_categories(name) ),
                 order:order_id!inner ( order_date, facility_id, status )
             `)
             .in('order.status', ['COMPLETED', 'DELIVERED']);
@@ -410,7 +410,7 @@ export const productService = {
             .select(`
                 quantity,
                 price,
-                product:product_id ( id, sku, name, unit, price ),
+                product:product_id ( id, sku, name, unit, price, category:vgvina_product_categories(name) ),
                 voucher:return_id!inner ( return_date, related_order_id, status )
             `)
             .in('voucher.status', ['COMPLETED', 'APPROVED']);
@@ -438,6 +438,7 @@ export const productService = {
                     productId: p.id,
                     sku: p.sku,
                     name: p.name,
+                    category: p.category?.name || 'Chưa phân loại',
                     unit: p.unit,
                     totalQty: 0,
                     totalRevenue: 0,

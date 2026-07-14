@@ -1132,6 +1132,24 @@ const Debt: React.FC = () => {
     setModalItem(null);
   };
 
+  const handleReconcileDebt = async (partnerId: string) => {
+    try {
+      showNotification('Đang đồng bộ công nợ...', 'info');
+      await debtService.reconcilePartnerDebts(partnerId, currentUser?.name || 'Hệ thống');
+      showNotification('Đồng bộ công nợ thành công!', 'success');
+      fetchDebts();
+      if (expandedDebtId) {
+        const activeDebt = debts.find(d => d.id === expandedDebtId);
+        if (activeDebt) {
+          await fetchPartnerStatementData(activeDebt.partner_id, expandedTimeFilter, expandedFromDate, expandedToDate);
+        }
+      }
+    } catch (error: any) {
+      console.error("Reconcile debt failed", error);
+      showNotification('Lỗi khi đồng bộ công nợ: ' + error.message, 'error');
+    }
+  };
+
   const renderCell = (debt: DebtType, columnKey: string) => {
     switch (columnKey) {
       case 'partner_name':
@@ -1483,6 +1501,12 @@ const Debt: React.FC = () => {
 
                               {/* Actions Bar */}
                               <div className="flex items-center gap-2 shrink-0 text-xs ml-auto sm:ml-0">
+                                <button
+                                  onClick={() => handleReconcileDebt(debt.partner_id)}
+                                  className="flex items-center gap-1 px-3 py-1.5 font-medium bg-[#0066cc]/10 text-[#0066cc] border border-[#0066cc]/20 rounded-md hover:bg-[#0066cc]/20 transition-all"
+                                >
+                                  Đồng bộ công nợ
+                                </button>
                                 <button
                                   onClick={() => handlePrintDebt(debt)}
                                   className="flex items-center gap-1 px-3 py-1.5 font-medium bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] shadow-sm transition-all"

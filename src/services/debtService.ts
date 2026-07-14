@@ -81,5 +81,151 @@ export const debtService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    async reconcilePartnerDebts(partnerId: string, operatorName: string): Promise<void> {
+        if (!partnerId) return;
+
+        // 1. Fetch all debts of partner
+        const { data: debts, error: debtsError } = await supabase
+            .from('vgvina_debt_transactions')
+            .select('*')
+            .eq('partner_id', partnerId)
+            .order('created_at', { ascending: true });
+
+        if (debtsError) {
+            console.error('[reconcilePartnerDebts] Error fetching debts:', debtsError);
+            throw debtsError;
+        }
+
+        if (!debts || debts.length === 0) return;
+
+        // 2. Fetch sales/purchase orders to find original amount
+        const orderIds = debts.map(d => d.related_order_id).filter(Boolean);
+        let salesOrders: any[] = [];
+        let purchaseOrders: any[] = [];
+
+        if (orderIds.length > 0) {
+            const { data: sales } = await supabase
+                .from('vgvina_sales_orders')
+                .select('id, total_amount, discount, amount_paid')
+                .in('id', orderIds);
+            salesOrders = sales || [];
+
+            const { data: purchases } = await supabase
+                .from('vgvina_purchase_orders')
+                .select('id, total_amount, discount, amount_paid')
+                .in('id', orderIds);
+            purchaseOrders = purchases || [];
+        }
+
+        const orderMap = new Map<string, number>();
+        salesOrders.forEach(o => {
+            const amt = Number(o.total_amount) - Number(o.discount || 0) - Number(o.amount_paid);
+            orderMap.set(o.id, amt);
+        });
+        purchaseOrders.forEach(o => {
+            const amt = Number(o.total_amount) - Number(o.discount || 0) - Number(o.amount_paid);
+            orderMap.set(o.id, amt);
+        });
+
+        // 3. Reconstruct original debts amount (and clean up status back to UNPAID for calculation)
+        const processedDebts = debts.map(d => {
+            let originalAmount = Number(d.amount);
+            if (d.related_order_id && orderMap.has(d.related_order_id)) {
+                originalAmount = orderMap.get(d.related_order_id)!;
+            }
+            return {
+                ...d,
+                originalAmount,
+                currentAmount: originalAmount,
+                currentStatus: 'UNPAID'
+            };
+        });
+
+        // 4. Fetch all real payments (exclude virtual TK KN / TK Nợ NCC account transactions)
+        const { data: accounts } = await supabase
+            .from('vgvina_accounts')
+            .select('id, name');
+        const debtAccountIds = (accounts || [])
+            .filter(a => a.name === 'TK KN' || a.name === 'TK Nợ NCC')
+            .map(a => a.id);
+
+        let query = supabase
+            .from('vgvina_financial_transactions')
+            .select('*')
+            .eq('partner_id', partnerId)
+            .order('transaction_date', { ascending: true });
+
+        if (debtAccountIds.length > 0) {
+            query = query.not('account_id', 'in', `(${debtAccountIds.join(',')})`);
+        }
+
+        const { data: txns, error: txnsError } = await query;
+        if (txnsError) {
+            console.error('[reconcilePartnerDebts] Error fetching payment transactions:', txnsError);
+            throw txnsError;
+        }
+
+        // Cash payments prefix code is usually PT- (Income) or PC- (Expense)
+        const realPayments = (txns || []).filter(t => t.code.startsWith('PT-') || t.code.startsWith('PC-'));
+
+        // 5. Apply payments to debts using FIFO
+        realPayments.forEach(pay => {
+            const payAmount = Number(pay.amount);
+            const debtType = pay.type === 'INCOME' ? 'RECEIVABLE' : 'PAYABLE';
+            let remaining = payAmount;
+
+            for (const debt of processedDebts) {
+                if (remaining <= 0) break;
+                if (debt.type !== debtType || debt.currentStatus === 'PAID') continue;
+
+                const debtAmt = debt.currentAmount;
+                if (remaining >= debtAmt) {
+                    remaining -= debtAmt;
+                    debt.currentAmount = 0;
+                    debt.currentStatus = 'PAID';
+                } else {
+                    debt.currentAmount = debtAmt - remaining;
+                    debt.currentStatus = 'PARTIALLY_PAID';
+                    remaining = 0;
+                }
+            }
+        });
+
+        // 6. Update database for changed debts
+        for (const debt of processedDebts) {
+            // Find the original DB record to check if amount or status changed
+            const originalDbRecord = debts.find(d => d.id === debt.id);
+            if (!originalDbRecord) continue;
+
+            const isAmountChanged = Number(originalDbRecord.amount) !== debt.currentAmount;
+            const isStatusChanged = originalDbRecord.status !== debt.currentStatus;
+
+            if (isAmountChanged || isStatusChanged) {
+                // Prepare new notes suffix with operator and date
+                let baseNotes = originalDbRecord.notes || '';
+                const syncNoteIdx = baseNotes.indexOf(' [Đồng bộ');
+                if (syncNoteIdx !== -1) {
+                    baseNotes = baseNotes.substring(0, syncNoteIdx);
+                }
+                const currentDateStr = new Date().toLocaleDateString('vi-VN');
+                const syncNote = ` [Đồng bộ ${currentDateStr} bởi ${operatorName}]`;
+                const newNotes = baseNotes + syncNote;
+
+                const { error: updateError } = await supabase
+                    .from('vgvina_debt_transactions')
+                    .update({
+                        amount: debt.currentAmount,
+                        status: debt.currentStatus,
+                        notes: newNotes
+                    })
+                    .eq('id', debt.id);
+
+                if (updateError) {
+                    console.error(`[reconcilePartnerDebts] Error updating debt ID ${debt.id}:`, updateError);
+                }
+            }
+        }
     }
 };

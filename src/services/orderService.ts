@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { SalesOrder, PurchaseOrder, OrderItem, OrderStatus, TransactionType } from '../../types';
+import { debtService } from './debtService';
 
 // Types for creating orders (omitting auto-generated fields)
 export interface CreateOrderPayload {
@@ -20,6 +21,7 @@ export interface CreateOrderPayload {
     discount?: number;
     notes?: string;
     accountId?: string; // Required if amountPaid > 0
+    operatorName?: string;
 }
 
 export const orderService = {
@@ -348,6 +350,11 @@ export const orderService = {
                 }
             }
             // --- End Financial Transaction for Debt Account ---
+        }
+
+        // Call reconcilePartnerDebts to ensure all debts are auto-settled correctly in FIFO
+        if (payload.partnerId) {
+            await debtService.reconcilePartnerDebts(payload.partnerId, payload.operatorName || 'Hệ thống');
         }
     },
 

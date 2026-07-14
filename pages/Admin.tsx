@@ -6,6 +6,7 @@ const Admin: React.FC = () => {
   const adminSections = [
     { name: 'Tài khoản', path: '/admin/tai-khoan', icon: <AccountIcon />, color: 'blue' },
     { name: 'Hạng mục', path: '/admin/hang-muc', icon: <CategoryIcon />, color: 'green' },
+    { name: 'Danh mục sản phẩm', path: '/admin/danh-muc-san-pham', icon: <CategoryIcon />, color: 'pink' },
     { name: 'Đối tượng', path: '/admin/doi-tuong', icon: <DoiTacIcon />, color: 'purple' },
     { name: 'Chi nhánh', path: '/admin/chi-nhanh', icon: <CategoryIcon />, color: 'yellow' },
     { name: 'Thành viên', path: '/admin/thanh-vien', icon: <NguoiDungIcon />, color: 'indigo' },
@@ -16,6 +17,7 @@ const Admin: React.FC = () => {
   const colorClasses = {
     blue: 'bg-blue-100 text-blue-600',
     green: 'bg-green-100 text-green-600',
+    pink: 'bg-pink-100 text-pink-600',
     purple: 'bg-purple-100 text-purple-600',
     yellow: 'bg-yellow-100 text-yellow-600',
     indigo: 'bg-indigo-100 text-indigo-600',

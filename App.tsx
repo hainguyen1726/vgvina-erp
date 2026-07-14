@@ -17,6 +17,7 @@ import ReportIncomeExpensePartner from './pages/ReportIncomeExpensePartner';
 import ReportDuplicates from './pages/ReportDuplicates';
 import AdminAccounts from './pages/AdminAccounts';
 import AdminCategories from './pages/AdminCategories';
+import AdminProductCategories from './pages/AdminProductCategories';
 import AdminPartners from './pages/AdminPartners';
 import { AdminAccountDetail } from './pages/AdminAccountDetail';
 import CreateVoucherLanding from './pages/CreateVoucherLanding';
@@ -181,6 +182,7 @@ const App: React.FC = () => {
                         <Route path="/admin/tai-khoan" element={<RequireAdmin><AdminAccounts /></RequireAdmin>} />
                         <Route path="/admin/tai-khoan/:accountId" element={<RequireAdmin><AdminAccountDetail /></RequireAdmin>} />
                         <Route path="/admin/hang-muc" element={<RequireAdmin><AdminCategories /></RequireAdmin>} />
+                        <Route path="/admin/danh-muc-san-pham" element={<RequireAdmin><AdminProductCategories /></RequireAdmin>} />
                         <Route path="/admin/doi-tuong" element={<RequireAdmin><AdminPartners /></RequireAdmin>} />
                         <Route path="/admin/thanh-vien" element={<RequireAdmin><Users /></RequireAdmin>} />
                         <Route path="/admin/history" element={<RequireAdmin><AdminHistory /></RequireAdmin>} />

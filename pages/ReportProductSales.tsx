@@ -14,6 +14,7 @@ import ProductMovementModal from '../components/modals/ProductMovementModal';
 const allColumns = [
     { key: 'sku', label: 'Mã hàng' },
     { key: 'name', label: 'Tên hàng hóa' },
+    { key: 'category', label: 'Danh mục' },
     { key: 'unit', label: 'Đơn vị' },
     { key: 'totalQty', label: 'Sl bán' },
     { key: 'totalRevenue', label: 'Doanh thu' },
@@ -33,7 +34,7 @@ const ReportProductSales: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(isMobile ? 10 : 30);
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>({ key: 'netRevenue', direction: 'descending' });
-    const [visibleColumns, setVisibleColumns] = useState(["sku", "name", "unit", "totalQty", "totalRevenue", "returnQty", "returnVal", "netRevenue"]);
+    const [visibleColumns, setVisibleColumns] = useState(["sku", "name", "category", "unit", "totalQty", "totalRevenue", "returnQty", "returnVal", "netRevenue"]);
 
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
@@ -224,6 +225,7 @@ const ReportProductSales: React.FC = () => {
                                         </td>
                                     )}
                                     {visibleColumns.includes('name') && <td className="px-6 py-4 text-left">{item.name}</td>}
+                                    {visibleColumns.includes('category') && <td className="px-6 py-4 text-left whitespace-nowrap text-gray-500">{item.category}</td>}
                                     {visibleColumns.includes('unit') && <td className="px-6 py-4 whitespace-nowrap text-left">{item.unit}</td>}
                                     {visibleColumns.includes('totalQty') && <td className="px-6 py-4 whitespace-nowrap text-right tabular-nums">{item.totalQty.toLocaleString()}</td>}
                                     {visibleColumns.includes('totalRevenue') && <td className="px-6 py-4 whitespace-nowrap text-right font-medium tabular-nums">{formatCurrency(item.totalRevenue)}</td>}

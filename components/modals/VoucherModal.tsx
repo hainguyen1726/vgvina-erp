@@ -993,7 +993,8 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                 facilityId: selectedFacilityId,
                 accountId: account.id,
                 assignedUserIds: assignedUserIds,
-                transactionDate: voucherDate
+                transactionDate: voucherDate,
+                operatorName: currentUser?.name || 'Hệ thống'
             });
 
             if (shouldPrint) {

@@ -55,5 +55,16 @@ export const categoryService = {
     async deleteProductCategory(id: string) {
         const { error } = await supabase.from('vgvina_product_categories').delete().eq('id', id);
         if (error) throw error;
+    },
+
+    async updateProductCategory(id: string, category: { name: string, description?: string }) {
+        const { data, error } = await supabase
+            .from('vgvina_product_categories')
+            .update(category)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
     }
 };

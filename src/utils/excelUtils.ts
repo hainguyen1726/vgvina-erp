@@ -107,8 +107,8 @@ export const excelUtils = {
             [null, null, `Chi nhánh: ${facilityName}`],
             [null, null, `Bảng giá: Tất cả`],
             [],
-            [null, null, null, null, null, '(Đã phân bổ giảm giá hóa đơn, giảm giá phiếu trả)'],
-            ['Mã hàng', 'Tên hàng', 'SL Bán', 'Doanh thu', 'SL Trả', 'Giá trị trả', 'Doanh thu thuần']
+            [null, null, null, null, null, null, '(Đã phân bổ giảm giá hóa đơn, giảm giá phiếu trả)'],
+            ['Mã hàng', 'Tên hàng', 'Danh mục', 'SL Bán', 'Doanh thu', 'SL Trả', 'Giá trị trả', 'Doanh thu thuần']
         ];
 
         let totalQty = 0;
@@ -134,6 +134,7 @@ export const excelUtils = {
             return [
                 item.sku,
                 item.name,
+                item.category || 'Chưa phân loại',
                 qty,
                 rev,
                 retQty,
@@ -145,6 +146,7 @@ export const excelUtils = {
         // Summary row
         wsData.push([
             `SL mặt hàng: ${data.length}`,
+            null,
             null,
             totalQty,
             totalRevenue,
@@ -166,26 +168,27 @@ export const excelUtils = {
         ws['C3'].s = { alignment: { horizontal: 'center' }, font: { name: 'Arial', sz: 10, color: { rgb: '555555' } } };
         ws['C4'].s = { alignment: { horizontal: 'center' }, font: { name: 'Arial', sz: 10, color: { rgb: '555555' } } };
         ws['C5'].s = { alignment: { horizontal: 'center' }, font: { name: 'Arial', sz: 10, color: { rgb: '555555' } } };
-        ws['F7'].s = { alignment: { horizontal: 'right' }, font: { italic: true, sz: 10, name: 'Arial', color: { rgb: '555555' } } };
+        ws['G7'].s = { alignment: { horizontal: 'right' }, font: { italic: true, sz: 10, name: 'Arial', color: { rgb: '555555' } } };
 
         // Merges
         ws['!merges'] = [
-            { s: { r: 1, c: 2 }, e: { r: 1, c: 6 } }, // Title
-            { s: { r: 2, c: 2 }, e: { r: 2, c: 6 } }, // Date
-            { s: { r: 3, c: 2 }, e: { r: 3, c: 6 } }, // Facility
-            { s: { r: 4, c: 2 }, e: { r: 4, c: 6 } }, // Price List
-            { s: { r: 6, c: 5 }, e: { r: 6, c: 6 } }, // Note
+            { s: { r: 1, c: 2 }, e: { r: 1, c: 7 } }, // Title
+            { s: { r: 2, c: 2 }, e: { r: 2, c: 7 } }, // Date
+            { s: { r: 3, c: 2 }, e: { r: 3, c: 7 } }, // Facility
+            { s: { r: 4, c: 2 }, e: { r: 4, c: 7 } }, // Price List
+            { s: { r: 6, c: 6 }, e: { r: 6, c: 7 } }, // Note
         ];
 
         // Column widths
         ws['!cols'] = [
             { wch: 15 }, // A
             { wch: 30 }, // B
-            { wch: 12 }, // C
-            { wch: 15 }, // D
-            { wch: 10 }, // E
-            { wch: 15 }, // F
+            { wch: 15 }, // C (Danh mục)
+            { wch: 12 }, // D
+            { wch: 15 }, // E
+            { wch: 10 }, // F
             { wch: 15 }, // G
+            { wch: 15 }, // H
         ];
 
         // Format headers & data
@@ -202,12 +205,12 @@ export const excelUtils = {
                 } else if (R === 8) {
                     // Total row
                     cell.s = { ...totalRowStyle };
-                    if (C === 6) {
+                    if (C === 7) {
                         cell.s = { ...totalRowStyle, ...netRevenueStyle };
                     }
                 } else {
                     // Data rows
-                    const isNum = C >= 2;
+                    const isNum = C >= 3;
                     cell.s = {
                         font: { name: 'Arial', sz: 10 },
                         alignment: { horizontal: isNum ? 'right' : 'left', vertical: 'center' },
@@ -267,7 +270,7 @@ export const excelUtils = {
             [null, null, `Từ ngày ${dateFromStr} đến ngày ${dateToStr}`],
             [null, null, `Chi nhánh: ${facilityName}`],
             [],
-            ['Mã hàng', 'Tên hàng', 'Tồn đầu kỳ', 'Giá trị đầu kỳ', 'SL Nhập', 'Giá trị nhập', 'SL Xuất', 'Giá trị xuất', 'Tồn cuối kỳ', 'Giá trị cuối kỳ']
+            ['Mã hàng', 'Tên hàng', 'Danh mục', 'Tồn đầu kỳ', 'Giá trị đầu kỳ', 'SL Nhập', 'Giá trị nhập', 'SL Xuất', 'Giá trị xuất', 'Tồn cuối kỳ', 'Giá trị cuối kỳ']
         ];
 
         let tBeg = 0, tBegV = 0, tIn = 0, tInV = 0, tOut = 0, tOutV = 0, tEnd = 0, tEndV = 0;
@@ -290,12 +293,14 @@ export const excelUtils = {
             return [
                 item.sku,
                 item.name,
+                item.category || 'Chưa phân loại',
                 b, bv, i, iv, o, ov, e, ev
             ];
         });
 
         wsData.push([
             `SL mặt hàng: ${data.length}`,
+            null,
             null,
             tBeg, tBegV, tIn, tInV, tOut, tOutV, tEnd, tEndV
         ]);
@@ -312,14 +317,15 @@ export const excelUtils = {
         ws['C4'].s = { alignment: { horizontal: 'center' }, font: { name: 'Arial', sz: 10, color: { rgb: '555555' } } };
 
         ws['!merges'] = [
-            { s: { r: 1, c: 2 }, e: { r: 1, c: 9 } },
-            { s: { r: 2, c: 2 }, e: { r: 2, c: 9 } },
-            { s: { r: 3, c: 2 }, e: { r: 3, c: 9 } }
+            { s: { r: 1, c: 2 }, e: { r: 1, c: 10 } },
+            { s: { r: 2, c: 2 }, e: { r: 2, c: 10 } },
+            { s: { r: 3, c: 2 }, e: { r: 3, c: 10 } }
         ];
 
         ws['!cols'] = [
             { wch: 15 }, // Mã
             { wch: 30 }, // Tên
+            { wch: 15 }, // Danh mục
             { wch: 10 }, { wch: 15 }, // Đầu kỳ
             { wch: 10 }, { wch: 15 }, // Nhập
             { wch: 10 }, { wch: 15 }, // Xuất
@@ -336,9 +342,9 @@ export const excelUtils = {
                     cell.s = headerRowStyle;
                 } else if (R === 6) {
                     cell.s = { ...totalRowStyle };
-                    if (C === 9) cell.s = { ...totalRowStyle, ...finalValueStyle };
+                    if (C === 10) cell.s = { ...totalRowStyle, ...finalValueStyle };
                 } else {
-                    const isNum = C >= 2;
+                    const isNum = C >= 3;
                     cell.s = {
                         font: { name: 'Arial', sz: 10 },
                         alignment: { horizontal: isNum ? 'right' : 'left', vertical: 'center' },

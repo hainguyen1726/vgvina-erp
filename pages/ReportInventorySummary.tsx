@@ -14,6 +14,7 @@ import ProductMovementModal from '../components/modals/ProductMovementModal';
 const allColumns = [
     { key: 'sku', label: 'Mã hàng' },
     { key: 'name', label: 'Tên hàng hóa' },
+    { key: 'category', label: 'Danh mục' },
     { key: 'unit', label: 'Đơn vị' },
     { key: 'beginning', label: 'Sl đầu kỳ' },
     { key: 'beginningValue', label: 'Gt đầu kỳ' },
@@ -36,7 +37,7 @@ const ReportInventorySummary: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(isMobile ? 10 : 30);
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
-    const [visibleColumns, setVisibleColumns] = useState(["sku", "name", "unit", "beginning", "beginningValue", "qtyIn", "inValue", "qtyOut", "outValue", "ending", "endValue"]);
+    const [visibleColumns, setVisibleColumns] = useState(["sku", "name", "category", "unit", "beginning", "beginningValue", "qtyIn", "inValue", "qtyOut", "outValue", "ending", "endValue"]);
 
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
@@ -173,6 +174,7 @@ const ReportInventorySummary: React.FC = () => {
         const exportData = filteredData.map(item => ({
             sku: item.sku,
             name: item.name,
+            category: item.category || 'Chưa phân loại',
             beginning: item.beginning,
             beginningValue: item.beginningValue || 0,
             in: item.qtyIn,
@@ -249,6 +251,7 @@ const ReportInventorySummary: React.FC = () => {
                                         </td>
                                     )}
                                     {visibleColumns.includes('name') && <td className="px-6 py-4">{item.name}</td>}
+                                    {visibleColumns.includes('category') && <td className="px-6 py-4 whitespace-nowrap text-gray-500">{item.category}</td>}
                                     {visibleColumns.includes('unit') && <td className="px-6 py-4 whitespace-nowrap">{item.unit}</td>}
                                     {visibleColumns.includes('beginning') && <td className="px-6 py-4 whitespace-nowrap text-right tabular-nums">{item.beginning.toLocaleString()}</td>}
                                     {visibleColumns.includes('beginningValue') && <td className="px-6 py-4 whitespace-nowrap text-right tabular-nums">{formatCurrency(item.beginningValue || 0)}</td>}
