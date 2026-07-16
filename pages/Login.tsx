@@ -9,10 +9,44 @@ export default function Login() {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
+    const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError('');
+
+        if (isHkd) {
+            // HKD custom database authentication flow
+            const { data: userData, error: lookupError } = await supabase
+                .from('vgvina_users')
+                .select('*')
+                .eq('username', identifier)
+                .maybeSingle();
+
+            if (lookupError || !userData) {
+                setError('Tên đăng nhập không tồn tại');
+                setLoading(false);
+                return;
+            }
+
+            if (userData.password_hash !== password) {
+                setError('Sai mật khẩu');
+                setLoading(false);
+                return;
+            }
+
+            localStorage.setItem('hkd_user', JSON.stringify({
+                id: userData.id,
+                username: userData.username,
+                email: userData.email,
+                role: userData.role,
+                full_name: userData.full_name
+            }));
+            setLoading(false);
+            navigate('/dashboard');
+            return;
+        }
 
         let email = identifier;
 
@@ -54,7 +88,7 @@ export default function Login() {
                     <h1 className="text-3xl font-bold text-gray-800 mb-2">
                         Đăng nhập
                     </h1>
-                    <p className="text-gray-600">VGVINA ERP System</p>
+                    <p className="text-gray-600">{isHkd ? 'Tuổi Ngọc ERP System' : 'VGVINA ERP System'}</p>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-6">

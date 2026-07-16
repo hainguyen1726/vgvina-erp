@@ -232,7 +232,7 @@ const IncomeExpense: React.FC = () => {
   const { showNotification } = useNotification();
   const [voucherModal, setVoucherModal] = useState({ isOpen: false, type: '' });
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
-  const [timeFilter, setTimeFilter] = useState<{ filter: string; dates?: { from: Date; to: Date } }>({ filter: 'All time' });
+  const [timeFilter, setTimeFilter] = useState<{ filter: string; dates?: { from: Date; to: Date } }>({ filter: 'Tháng này' });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState<FinancialTransaction | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
@@ -260,7 +260,7 @@ const IncomeExpense: React.FC = () => {
 
   useEffect(() => {
     fetchTransactions();
-  }, [selectedFacilityId, currentUser]);
+  }, [selectedFacilityId, currentUser, timeFilter, typeFilter]);
 
   // Load accounts for filters on mount
   useEffect(() => {
@@ -303,11 +303,68 @@ const IncomeExpense: React.FC = () => {
         ['admin', 'Admin', 'Quản trị viên', 'Kế toán HO', 'Ban Lãnh đạo', 'Quản lý Chi nhánh'].includes(currentUser?.role || '');
       const employeeIdFilter = !isAdmin ? currentUser?.id : undefined;
 
+      // Calculate start and end dates based on timeFilter to query database efficiently
+      const now = new Date();
+      let fromDate: string | undefined;
+      let toDate: string | undefined;
+
+      switch (timeFilter.filter) {
+        case 'Hôm nay':
+          fromDate = toDate = now.toISOString().split('T')[0];
+          break;
+        case 'Hôm qua':
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          fromDate = toDate = yesterday.toISOString().split('T')[0];
+          break;
+        case 'Tuần này':
+          const day = now.getDay();
+          const diff = now.getDate() - (day === 0 ? 6 : day - 1);
+          fromDate = new Date(now.setDate(diff)).toISOString().split('T')[0];
+          toDate = new Date().toISOString().split('T')[0];
+          break;
+        case 'Tháng này':
+          fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+          toDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+          break;
+        case 'Tháng trước':
+          fromDate = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+          toDate = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+          break;
+        case 'Quý này':
+          const quarter = Math.floor(now.getMonth() / 3);
+          fromDate = new Date(now.getFullYear(), quarter * 3, 1).toISOString().split('T')[0];
+          toDate = new Date(now.getFullYear(), (quarter + 1) * 3, 0).toISOString().split('T')[0];
+          break;
+        case 'Quý trước':
+          const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
+          fromDate = new Date(now.getFullYear(), lastQuarter * 3, 1).toISOString().split('T')[0];
+          toDate = new Date(now.getFullYear(), (lastQuarter + 1) * 3, 0).toISOString().split('T')[0];
+          break;
+        case 'Năm nay':
+          fromDate = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+          toDate = new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0];
+          break;
+        case 'Năm trước':
+          fromDate = new Date(now.getFullYear() - 1, 0, 1).toISOString().split('T')[0];
+          toDate = new Date(now.getFullYear() - 1, 11, 31).toISOString().split('T')[0];
+          break;
+        case 'Tùy chọn':
+          if (timeFilter.dates) {
+            fromDate = timeFilter.dates.from.toISOString().split('T')[0];
+            toDate = timeFilter.dates.to.toISOString().split('T')[0];
+          }
+          break;
+      }
+
       const data = await transactionService.getTransactions(
         typeFilter || 'All',
         undefined,
         selectedFacilityId || undefined,
-        employeeIdFilter
+        employeeIdFilter,
+        undefined,
+        fromDate,
+        toDate
       );
       const filteredData = data.filter(t => t.account_name !== 'TK KN' && t.account_name !== 'TK Nợ NCC');
       setTransactions(filteredData);
@@ -318,11 +375,7 @@ const IncomeExpense: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    // Re-fetch if type filter changes (or client side filter)
-    // Current service handles 'All' or specific type.
-    fetchTransactions();
-  }, [typeFilter]);
+  // Consolidated re-fetch effects into main trigger
 
   const handleOpenVoucherModal = (type: string) => {
     setVoucherModal({ isOpen: true, type });
@@ -630,7 +683,7 @@ const IncomeExpense: React.FC = () => {
 
   return (
     <>
-      <FilterBar onSearch={setSearchTerm} onTimeFilterChange={handleTimeFilterChange} pageTitle={Page.ThuChi} />
+      <FilterBar onSearch={setSearchTerm} onTimeFilterChange={handleTimeFilterChange} pageTitle={Page.ThuChi} initialFilter="Tháng này" />
 
       {/* Desktop Summary Cards */}
       <div className="hidden md:flex space-x-6">

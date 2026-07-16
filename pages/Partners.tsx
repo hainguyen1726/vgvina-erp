@@ -443,7 +443,7 @@ const Partners: React.FC = () => {
       });
     }
     return sortablePartners;
-  }, [searchTerm, sortConfig, activeFilter]);
+  }, [partners, searchTerm, sortConfig, activeFilter]);
 
   const totalPages = Math.ceil(sortedPartners.length / itemsPerPage);
   const paginatedPartners = sortedPartners.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);

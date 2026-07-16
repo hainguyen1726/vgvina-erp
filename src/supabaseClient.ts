@@ -8,4 +8,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase URL or Anon Key in .env.local')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+const currentSchema = isHkd ? 'hkd' : 'public';
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  db: {
+    schema: currentSchema
+  }
+});

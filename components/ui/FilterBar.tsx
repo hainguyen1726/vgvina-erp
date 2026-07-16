@@ -8,20 +8,33 @@ interface FilterBarProps {
   onTimeFilterChange: (filter: string, dates?: { from: Date; to: Date }) => void;
   pageTitle: string;
   backPath?: string;
+  initialFilter?: string;
 }
 
-const FilterBar: React.FC<FilterBarProps> = ({ onSearch, onTimeFilterChange, pageTitle, backPath }) => {
+const FilterBar: React.FC<FilterBarProps> = ({ onSearch, onTimeFilterChange, pageTitle, backPath, initialFilter }) => {
   const { showNotification } = useNotification();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedTimeFilter, setSelectedTimeFilter] = useState('All time');
+  const [selectedTimeFilter, setSelectedTimeFilter] = useState(initialFilter || 'All time');
   const [isCustomRangeVisible, setIsCustomRangeVisible] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [customDates, setCustomDates] = useState<{ from: string, to: string }>({ from: '', to: '' });
   const [isMobileSearchVisible, setIsMobileSearchVisible] = useState(false);
 
 
-  const timeOptions = ['Hôm nay', 'Hôm qua', 'Tuần này', 'Tháng này', 'Quý này', 'Năm nay', 'All time', 'Tùy chọn'];
+  const timeOptions = [
+    'Hôm nay',
+    'Hôm qua',
+    'Tuần này',
+    'Tháng này',
+    'Tháng trước',
+    'Quý này',
+    'Quý trước',
+    'Năm nay',
+    'Năm trước',
+    'All time',
+    'Tùy chọn'
+  ];
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -35,6 +48,54 @@ const FilterBar: React.FC<FilterBarProps> = ({ onSearch, onTimeFilterChange, pag
     };
   }, []);
 
+  const calculateDateRange = (option: string): { from: Date; to: Date } | undefined => {
+    const now = new Date();
+    let from: Date;
+    let to: Date = new Date();
+    to.setHours(23, 59, 59, 999);
+
+    switch (option) {
+      case 'Hôm nay':
+        from = new Date(); from.setHours(0, 0, 0, 0);
+        break;
+      case 'Hôm qua':
+        from = new Date(); from.setDate(now.getDate() - 1); from.setHours(0, 0, 0, 0);
+        to = new Date(); to.setDate(now.getDate() - 1); to.setHours(23, 59, 59, 999);
+        break;
+      case 'Tuần này':
+        const day = now.getDay();
+        const diff = now.getDate() - (day === 0 ? 6 : day - 1);
+        from = new Date(now.setDate(diff)); from.setHours(0, 0, 0, 0);
+        break;
+      case 'Tháng này':
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case 'Tháng trước':
+        from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        break;
+      case 'Quý này':
+        const quarter = Math.floor(now.getMonth() / 3);
+        from = new Date(now.getFullYear(), quarter * 3, 1);
+        break;
+      case 'Quý trước':
+        const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
+        from = new Date(now.getFullYear(), lastQuarter * 3, 1);
+        to = new Date(now.getFullYear(), (lastQuarter + 1) * 3, 0, 23, 59, 59, 999);
+        break;
+      case 'Năm nay':
+        from = new Date(now.getFullYear(), 0, 1);
+        break;
+      case 'Năm trước':
+        from = new Date(now.getFullYear() - 1, 0, 1);
+        to = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+        break;
+      default:
+        return undefined;
+    }
+    return { from, to };
+  };
+
   const handleTimeSelect = (option: string) => {
     setSelectedTimeFilter(option);
     setIsDropdownOpen(false);
@@ -44,7 +105,12 @@ const FilterBar: React.FC<FilterBarProps> = ({ onSearch, onTimeFilterChange, pag
       setIsCustomRangeVisible(true);
     } else {
       setIsCustomRangeVisible(false);
-      onTimeFilterChange(option);
+      if (option === 'Tháng trước' || option === 'Quý trước' || option === 'Năm trước') {
+        const range = calculateDateRange(option);
+        onTimeFilterChange('Tùy chọn', range);
+      } else {
+        onTimeFilterChange(option);
+      }
     }
   };
 
@@ -81,10 +147,31 @@ const FilterBar: React.FC<FilterBarProps> = ({ onSearch, onTimeFilterChange, pag
           <h1 className="text-xl md:text-2xl font-bold text-gray-800">{pageTitle}</h1>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="relative" ref={dropdownRef}>
+          {/* Nút lọc nhanh thời gian cho màn hình máy tính (Desktop) */}
+          <div className="hidden md:flex items-center space-x-1.5 bg-white p-1.5 rounded-lg border border-gray-300 shadow-sm">
+            {timeOptions.map((option) => (
+              <button
+                key={option}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleTimeSelect(option);
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
+                  selectedTimeFilter === option
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+
+          {/* Dropdown chọn thời gian cho màn hình nhỏ (Mobile) */}
+          <div className="relative md:hidden" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center justify-between w-36 sm:w-48 px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0066cc]"
+              className="flex items-center justify-between w-36 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0066cc]"
             >
               <span className="flex items-center">
                 <CalendarIcon className="mr-2" />
@@ -103,7 +190,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ onSearch, onTimeFilterChange, pag
                           e.preventDefault();
                           handleTimeSelect(option);
                         }}
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-medium"
                       >
                         {option}
                       </a>

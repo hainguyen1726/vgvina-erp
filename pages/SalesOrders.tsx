@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import FilterBar from '../components/ui/FilterBar';
@@ -8,6 +8,9 @@ import { TableActions } from '../components/ui/TableActions';
 import VoucherModal from '../components/modals/VoucherModal';
 import { Page, SalesOrder, PurchaseOrder, OrderStatus, OrderItem, TransactionType } from '../types';
 import { orderService } from '../src/services/orderService';
+import { partnerService } from '../src/services/partnerService';
+import { productService } from '../src/services/productService';
+import { supabase } from '../src/supabaseClient';
 import PrintVoucherTemplate from '../components/print/PrintVoucherTemplate';
 // import { salesOrders as mockSalesOrders, purchaseOrders as mockPurchaseOrders } from '../data/mockData';
 import { DonHangIcon, ThuChiIcon, CongNoIcon, PlusIcon, ExportIcon, EditIcon, DeleteIcon, KhoIcon, ArrowUpIcon, ChevronDownIcon, ArrowsUpDownIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/icons/Icons';
@@ -284,6 +287,11 @@ export const SalesOrderDetailModal = ({ item, onClose, onEditClick, onDeleteClic
 
 const ReportInventoryTransactions: React.FC = () => {
   const [viewMode, setViewMode] = useState<'export' | 'import'>('export');
+  const [dataToImport, setDataToImport] = useState<any[] | null>(null);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(isMobile ? 8 : 30);
@@ -293,7 +301,12 @@ const ReportInventoryTransactions: React.FC = () => {
   const [voucherModal, setVoucherModal] = useState<{ isOpen: boolean; type: string; initialData?: any }>({ isOpen: false, type: '' });
   const { showNotification } = useNotification();
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
-  const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
+  const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>(() => {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    return { from, to };
+  });
 
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -527,6 +540,296 @@ const ReportInventoryTransactions: React.FC = () => {
     return acc;
   }, {} as Record<string, OrderType[]>);
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleDownloadTemplate = () => {
+    excelUtils.exportTemplate([
+      'Mã phiếu',
+      'Tên đối tác',
+      'Ngày đặt',
+      'Trạng thái',
+      'Tên sản phẩm',
+      'Số lượng',
+      'Đơn giá',
+      'Giảm giá',
+      'Đã thanh toán',
+      'Tài khoản thanh toán',
+      'Ghi chú'
+    ], 'Mau_XuatNhapKho');
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      try {
+        setLoading(true);
+        const rows = await excelUtils.readExcel(e.target.files[0]);
+        if (rows.length === 0) {
+          showNotification("File Excel không có dữ liệu.", "warning");
+          setLoading(false);
+          return;
+        }
+
+        // Fetch partners, products, and financial accounts for mapping
+        const [partnersList, productsList, accountsList] = await Promise.all([
+          partnerService.getPartners(),
+          productService.getProducts(),
+          supabase.from('vgvina_financial_accounts').select('id, name')
+        ]);
+
+        const accounts = accountsList.data || [];
+        const errors: string[] = [];
+        const mappedOrders: any[] = [];
+
+        // Group rows by "Mã phiếu"
+        const groupedRows: { [code: string]: any[] } = {};
+        rows.forEach((row: any, index: number) => {
+          const code = String(row['Mã phiếu'] || row['code'] || '').trim();
+          if (!code) {
+            errors.push(`Dòng ${index + 2}: Thiếu "Mã phiếu".`);
+            return;
+          }
+          if (!groupedRows[code]) {
+            groupedRows[code] = [];
+          }
+          groupedRows[code].push({ row, index: index + 2 });
+        });
+
+        // Check for existing order codes in database
+        const codesToCheck = Object.keys(groupedRows);
+        const orderTable = viewMode === 'export' ? 'vgvina_sales_orders' : 'vgvina_purchase_orders';
+        const { data: existingCodesData } = await supabase
+          .from(orderTable)
+          .select('code')
+          .in('code', codesToCheck);
+
+        const existingCodes = new Set((existingCodesData || []).map((o: any) => o.code));
+
+        // Map each group to an order payload
+        for (const [code, items] of Object.entries(groupedRows)) {
+          const firstItem = items[0];
+          const firstRow = firstItem.row;
+          const lineNum = firstItem.index;
+
+          if (existingCodes.has(code)) {
+            errors.push(`Phiếu ${code} (Dòng ${lineNum}): Mã phiếu đã tồn tại trên hệ thống.`);
+            continue;
+          }
+
+          const partnerName = String(firstRow['Tên đối tác'] || firstRow['partner_name'] || '').trim();
+          if (!partnerName) {
+            errors.push(`Phiếu ${code} (Dòng ${lineNum}): Thiếu "Tên đối tác".`);
+            continue;
+          }
+
+          // Find partner
+          const partner = partnersList.find(p => p.name.toLowerCase() === partnerName.toLowerCase());
+          if (!partner) {
+            errors.push(`Phiếu ${code} (Dòng ${lineNum}): Không tìm thấy đối tác "${partnerName}" trong hệ thống.`);
+            continue;
+          }
+
+          // Verify partner type matches viewMode
+          const expectedType = viewMode === 'export' ? 'CUSTOMER' : 'SUPPLIER';
+          if (partner.type !== expectedType) {
+            errors.push(`Phiếu ${code} (Dòng ${lineNum}): Đối tác "${partnerName}" là ${partner.type === 'CUSTOMER' ? 'Khách hàng' : 'Nhà cung cấp'}, không khớp với chế độ ${viewMode === 'export' ? 'Xuất kho' : 'Nhập kho'}.`);
+            continue;
+          }
+
+          // Parse date
+          let rawOrderDate = String(firstRow['Ngày đặt'] || firstRow['order_date'] || '').trim();
+          let orderDate = '';
+          if (rawOrderDate) {
+            if (!isNaN(Number(rawOrderDate))) {
+              const serial = Number(rawOrderDate);
+              const utc_days = Math.floor(serial - 25569);
+              const utc_value = utc_days * 86400;
+              const date_info = new Date(utc_value * 1000);
+              if (!isNaN(date_info.getTime())) {
+                orderDate = date_info.toISOString().split('T')[0];
+              }
+            } else {
+              // Strip time parts separated by space or 'T'
+              let cleanDateStr = rawOrderDate;
+              if (cleanDateStr.includes(' ')) {
+                cleanDateStr = cleanDateStr.split(' ')[0];
+              }
+              if (cleanDateStr.includes('T')) {
+                cleanDateStr = cleanDateStr.split('T')[0];
+              }
+
+              const separators = ['/', '-'];
+              let matched = false;
+              for (const sep of separators) {
+                const parts = cleanDateStr.split(sep);
+                if (parts.length === 3) {
+                  if (parts[0].length === 4) {
+                    const year = parts[0];
+                    const month = parts[1].padStart(2, '0');
+                    const day = parts[2].padStart(2, '0');
+                    orderDate = `${year}-${month}-${day}`;
+                    matched = true;
+                    break;
+                  } else if (parts[2].length === 4) {
+                    const day = parts[0].padStart(2, '0');
+                    const month = parts[1].padStart(2, '0');
+                    const year = parts[2];
+                    orderDate = `${year}-${month}-${day}`;
+                    matched = true;
+                    break;
+                  }
+                }
+              }
+
+              if (!matched) {
+                const parsedDate = new Date(cleanDateStr);
+                if (!isNaN(parsedDate.getTime())) {
+                  orderDate = parsedDate.toISOString().split('T')[0];
+                }
+              }
+            }
+          }
+          if (!orderDate) {
+            orderDate = new Date().toISOString().split('T')[0]; // Default to today
+          }
+
+          // Parse status
+          const statusText = String(firstRow['Trạng thái'] || firstRow['status'] || '').trim().toLowerCase();
+          let status = OrderStatus.COMPLETED;
+          if (statusText.includes('chờ') || statusText.includes('pending')) status = OrderStatus.PENDING;
+          else if (statusText.includes('giao') || statusText.includes('delivered')) status = OrderStatus.DELIVERED;
+          else if (statusText.includes('hủy') || statusText.includes('cancelled')) status = OrderStatus.CANCELLED;
+
+          // Parse discount & amountPaid
+          const discount = Number(firstRow['Giảm giá'] || firstRow['discount'] || 0) || 0;
+          const amountPaid = Number(firstRow['Đã thanh toán'] || firstRow['amount_paid'] || 0) || 0;
+
+          // Find payment account if amountPaid > 0
+          let accountId: string | undefined = undefined;
+          if (amountPaid > 0) {
+            const accountName = String(firstRow['Tài khoản thanh toán'] || firstRow['account_name'] || '').trim();
+            if (accountName) {
+              const account = accounts.find(a => a.name.toLowerCase() === accountName.toLowerCase());
+              if (account) {
+                accountId = account.id;
+              } else {
+                errors.push(`Phiếu ${code} (Dòng ${lineNum}): Không tìm thấy tài khoản thanh toán "${accountName}".`);
+              }
+            } else {
+              // Default to the first account (e.g. Tiền mặt) if available
+              if (accounts.length > 0) {
+                accountId = accounts[0].id;
+              } else {
+                errors.push(`Phiếu ${code} (Dòng ${lineNum}): Yêu cầu chọn tài khoản thanh toán khi số tiền thanh toán > 0.`);
+              }
+            }
+          }
+
+          // Map items
+          const orderItems: any[] = [];
+          let hasItemError = false;
+          for (const item of items) {
+            const productName = String(item.row['Tên sản phẩm'] || item.row['product_name'] || '').trim();
+            if (!productName) {
+              errors.push(`Phiếu ${code} (Dòng ${item.index}): Thiếu "Tên sản phẩm".`);
+              hasItemError = true;
+              continue;
+            }
+
+            const product = productsList.find(p => String(p.name).toLowerCase() === productName.toLowerCase());
+            if (!product) {
+              errors.push(`Phiếu ${code} (Dòng ${item.index}): Không tìm thấy sản phẩm tên "${productName}" trong hệ thống.`);
+              hasItemError = true;
+              continue;
+            }
+
+            const quantity = Number(item.row['Số lượng'] || item.row['quantity'] || 0);
+            if (quantity <= 0) {
+              errors.push(`Phiếu ${code} (Dòng ${item.index}): Số lượng phải lớn hơn 0.`);
+              hasItemError = true;
+              continue;
+            }
+
+            const price = Number(item.row['Đơn giá'] || item.row['price'] || 0);
+            if (price < 0) {
+              errors.push(`Phiếu ${code} (Dòng ${item.index}): Đơn giá không được âm.`);
+              hasItemError = true;
+              continue;
+            }
+
+            const itemNotes = String(item.row['Ghi chú'] || item.row['notes'] || '').trim();
+
+            orderItems.push({
+              productId: product.id,
+              productName: product.name,
+              productSku: product.sku,
+              quantity,
+              price,
+              notes: itemNotes
+            });
+          }
+
+          if (hasItemError) continue;
+
+          // Calculate totalAmount
+          const subtotal = orderItems.reduce((sum, it) => sum + (it.quantity * it.price), 0);
+          const totalAmount = Math.max(0, subtotal - discount);
+
+          mappedOrders.push({
+            code,
+            partnerId: partner.id,
+            partnerName: partner.name,
+            facilityId: selectedFacilityId || (currentUser as any)?.facility_id || '00000000-0000-0000-0000-000000000000',
+            assignedUserIds: currentUser ? [String(currentUser.id)] : [],
+            orderDate,
+            status,
+            items: orderItems,
+            totalAmount,
+            amountPaid: Math.min(amountPaid, totalAmount),
+            discount,
+            notes: String(firstRow['Ghi chú'] || firstRow['notes'] || '').trim(),
+            accountId
+          });
+        }
+
+        setImportErrors(errors);
+        setDataToImport(mappedOrders);
+      } catch (error: any) {
+        console.error("Failed to read import excel:", error);
+        showNotification("Lỗi khi đọc file Excel: " + (error.message || error), "error");
+      } finally {
+        setLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!dataToImport || dataToImport.length === 0) return;
+    try {
+      setIsImporting(true);
+      let successCount = 0;
+      for (const order of dataToImport) {
+        if (viewMode === 'export') {
+          await orderService.createSalesOrder(order);
+        } else {
+          await orderService.createPurchaseOrder(order);
+        }
+        successCount++;
+      }
+      showNotification(`Đã import thành công ${successCount} phiếu ${viewMode === 'export' ? 'xuất kho' : 'nhập kho'}.`, 'success');
+      setDataToImport(null);
+      setImportErrors([]);
+      fetchOrders();
+    } catch (error: any) {
+      console.error("Failed to import orders:", error);
+      showNotification("Lỗi khi import phiếu: " + (error.message || error), "error");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleEditClick = (item: OrderType) => {
     setModalItem(null);
     handleOpenVoucherModal('customer_name' in item ? 'delivery-note' : 'purchase-order', item);
@@ -578,7 +881,7 @@ const ReportInventoryTransactions: React.FC = () => {
 
   return (
     <>
-      <FilterBar onSearch={setSearchTerm} onTimeFilterChange={handleTimeFilterChange} pageTitle={Page.XuatNhap} backPath="/bao-cao" />
+      <FilterBar onSearch={setSearchTerm} onTimeFilterChange={handleTimeFilterChange} pageTitle={Page.XuatNhap} backPath="/bao-cao" initialFilter="Tháng này" />
 
       <div className="hidden md:flex space-x-4">
         {summaryCards.map(card => <SummaryCard key={card.title} {...card} />)}
@@ -602,6 +905,8 @@ const ReportInventoryTransactions: React.FC = () => {
               ...(can('sales_orders', 'create') ? [{ label: 'Phiếu xuất hàng', onClick: () => handleOpenVoucherModal('delivery-note') }] : []),
             ],
           },
+          { label: 'Tải mẫu', icon: <ExportIcon />, onClick: handleDownloadTemplate, variant: 'secondary' as any },
+          { label: 'Import', icon: <PlusIcon />, onClick: handleImportClick, variant: 'secondary' as any },
           ...(can('reports', 'export') ? [{ label: 'Xuất file', icon: <ExportIcon />, onClick: handleExportExcel, variant: 'secondary' as any }] : []),
         ]}
         columns={allColumns}
@@ -705,6 +1010,99 @@ const ReportInventoryTransactions: React.FC = () => {
       />
       <ConfirmationModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={handleConfirmDelete} title={`Xác nhận Xóa`} message={`Bạn có chắc chắn muốn xóa phiếu "${itemToDelete?.code}" không?`} />
       <VoucherModal isOpen={voucherModal.isOpen} voucherType={voucherModal.type} initialData={voucherModal.initialData} onClose={handleCloseVoucherModal} />
+      
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept=".xlsx, .xls"
+        className="hidden"
+      />
+
+      {dataToImport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[70] flex justify-center items-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center border-b p-4">
+              <h3 className="text-lg font-bold text-gray-800">
+                Xem trước nhập dữ liệu ({viewMode === 'export' ? 'Xuất kho' : 'Nhập kho'})
+              </h3>
+              <button onClick={() => { setDataToImport(null); setImportErrors([]); }} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">&times;</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {importErrors.length > 0 ? (
+                <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
+                  <h4 className="font-bold mb-2">Phát hiện {importErrors.length} lỗi trong file Excel:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-sm max-h-60 overflow-y-auto">
+                    {importErrors.map((err, idx) => <li key={idx}>{err}</li>)}
+                  </ul>
+                  <p className="mt-3 text-xs text-red-500 italic">Vui lòng sửa các lỗi trên trong file Excel của bạn trước khi thử lại.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg text-sm">
+                    ✓ File Excel hợp lệ! Phát hiện <strong>{dataToImport.length}</strong> phiếu sẵn sàng để nhập vào hệ thống.
+                  </div>
+                  
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm text-left text-gray-500">
+                      <thead className="bg-gray-50 text-xs text-gray-700 uppercase border-b">
+                        <tr>
+                          <th className="px-4 py-2">Mã phiếu</th>
+                          <th className="px-4 py-2">Đối tác</th>
+                          <th className="px-4 py-2">Ngày đặt</th>
+                          <th className="px-4 py-2 text-right">Tổng tiền</th>
+                          <th className="px-4 py-2 text-right">Đã trả</th>
+                          <th className="px-4 py-2">Sản phẩm</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {dataToImport.map((order, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-3.5 font-medium text-gray-900">{order.code}</td>
+                            <td className="px-4 py-3.5">{order.partnerName}</td>
+                            <td className="px-4 py-3.5">{formatDate(order.orderDate)}</td>
+                            <td className="px-4 py-3.5 text-right font-semibold text-gray-800">{order.totalAmount.toLocaleString('vi-VN')} ₫</td>
+                            <td className="px-4 py-3.5 text-right text-green-600">{order.amountPaid.toLocaleString('vi-VN')} ₫</td>
+                            <td className="px-4 py-3.5 text-xs text-gray-500">
+                              <ul className="list-disc list-inside">
+                                {order.items.map((it: any, i: number) => (
+                                  <li key={i} className="truncate max-w-[200px]" title={it.productName}>
+                                    {it.productName} ({it.quantity} x {it.price.toLocaleString('vi-VN')} ₫)
+                                  </li>
+                                ))}
+                              </ul>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t p-4 flex justify-end gap-2 bg-gray-50 rounded-b-lg">
+              <button
+                type="button"
+                onClick={() => { setDataToImport(null); setImportErrors([]); }}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm font-medium"
+                disabled={isImporting}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmImport}
+                className="px-4 py-2 bg-[#0066cc] text-white rounded-md hover:bg-[#0052a3] text-sm font-medium disabled:opacity-50"
+                disabled={isImporting || importErrors.length > 0}
+              >
+                {isImporting ? 'Đang nhập...' : 'Xác nhận Import'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

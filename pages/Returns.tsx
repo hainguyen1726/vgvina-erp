@@ -258,7 +258,7 @@ const Returns: React.FC = () => {
 
   return (
     <>
-      <FilterBar onSearch={setSearchTerm} onTimeFilterChange={handleTimeFilterChange} pageTitle="Báo cáo Trả Hàng" backPath="/bao-cao" />
+      <FilterBar onSearch={setSearchTerm} onTimeFilterChange={handleTimeFilterChange} pageTitle="Báo cáo Trả Hàng" backPath="/bao-cao" initialFilter="Tháng này" />
 
       {/* Desktop Summary Cards */}
       <div className="hidden md:flex md:space-x-4">

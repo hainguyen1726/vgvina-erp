@@ -29,7 +29,12 @@ const ReportProductSales: React.FC = () => {
     const [reportData, setReportData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
+    const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>(() => {
+        const now = new Date();
+        const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        return { from, to };
+    });
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(isMobile ? 10 : 30);
@@ -179,6 +184,7 @@ const ReportProductSales: React.FC = () => {
                 onTimeFilterChange={handleTimeFilterChange}
                 pageTitle="Báo cáo bán hàng theo hàng hóa"
                 backPath="/bao-cao"
+                initialFilter="Tháng này"
             />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

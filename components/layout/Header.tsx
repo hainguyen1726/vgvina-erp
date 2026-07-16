@@ -92,9 +92,15 @@ const Header: React.FC<HeaderProps> = ({ isSidebarCollapsed = false }) => {
     document.documentElement.style.setProperty('--header-height', show ? '4rem' : '0rem');
   }, [show]);
 
+  const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+
   const handleLogout = async () => {
     console.log('User logging out...');
-    await supabase.auth.signOut();
+    if (isHkd) {
+      localStorage.removeItem('hkd_user');
+    } else {
+      await supabase.auth.signOut();
+    }
     setIsUserDropdownOpen(false);
     // Redirect to login page
     window.location.href = '/#/login';
@@ -106,7 +112,7 @@ const Header: React.FC<HeaderProps> = ({ isSidebarCollapsed = false }) => {
         {/* Left part: Logo — hidden on desktop since it's in Sidebar */}
         <div className="flex items-center flex-shrink-0 md:hidden">
           <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01" /></svg>
-          <span className="ml-2 font-bold text-xl text-white">VGVINA</span>
+          <span className="ml-2 font-bold text-xl text-white">{isHkd ? 'Tuổi Ngọc' : 'VGVINA'}</span>
         </div>
 
         {/* Middle part: Navigation — hidden on desktop since it's in Sidebar */}

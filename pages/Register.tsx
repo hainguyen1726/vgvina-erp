@@ -51,6 +51,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose }) => {
 };
 
 export default function Register() {
+    const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
     const [username, setUsername] = useState('');
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
@@ -91,6 +92,30 @@ export default function Register() {
         if (existingUser) {
             setError('Tên đăng nhập đã tồn tại');
             setLoading(false);
+            return;
+        }
+
+        if (isHkd) {
+            // HKD custom database registration (bypass Supabase Auth)
+            const { error: userError } = await supabase
+                .from('vgvina_users')
+                .insert({
+                    username,
+                    email,
+                    full_name: fullName,
+                    phone_number: phone,
+                    role: 'Guest',
+                    status: 'Pending',
+                    password_hash: password
+                });
+
+            if (userError) {
+                setError('Không thể tạo hồ sơ người dùng: ' + userError.message);
+                setLoading(false);
+            } else {
+                setLoading(false);
+                setShowSuccessModal(true);
+            }
             return;
         }
 
@@ -168,7 +193,7 @@ export default function Register() {
                         <h1 className="text-3xl font-bold text-gray-800 mb-2">
                             Đăng ký
                         </h1>
-                        <p className="text-gray-600">Tạo tài khoản VGVINA ERP</p>
+                        <p className="text-gray-600">{isHkd ? 'Tạo tài khoản Tuổi Ngọc ERP' : 'Tạo tài khoản VGVINA ERP'}</p>
                     </div>
 
                     <form onSubmit={handleRegister} className="space-y-4">

@@ -32,14 +32,36 @@ const UserProfile: React.FC = () => {
     const fetchCurrentUser = async () => {
         try {
             setLoading(true);
-            const { data: { user } } = await supabase.auth.getUser();
-            setAuthUser(user);
+            const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+            
+            let email = null;
+            let phone = null;
+            let username = null;
 
-            if (user) {
+            if (isHkd) {
+                const localUserStr = localStorage.getItem('hkd_user');
+                if (localUserStr) {
+                    const localUser = JSON.parse(localUserStr);
+                    setAuthUser(localUser);
+                    email = localUser.email;
+                    phone = localUser.phone;
+                    username = localUser.username;
+                }
+            } else {
+                const { data: { user } } = await supabase.auth.getUser();
+                setAuthUser(user);
+                if (user) {
+                    email = user.email;
+                    phone = user.phone;
+                }
+            }
+
+            if (email || phone || username) {
                 const users = await userService.getUsers();
                 const matchedUser = users.find(u => {
-                    const emailMatch = user.email && u.email === user.email;
-                    const phoneMatch = user.phone && u.phone === user.phone;
+                    if (isHkd && username && u.username === username) return true;
+                    const emailMatch = email && u.email === email;
+                    const phoneMatch = phone && u.phone === phone;
                     return emailMatch || phoneMatch;
                 });
 
@@ -79,7 +101,8 @@ const UserProfile: React.FC = () => {
 
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!authUser?.email) return;
+        const identifier = authUser?.email || authUser?.username;
+        if (!identifier) return;
 
         if (passwordData.newPassword !== passwordData.confirmPassword) {
             showNotification('Mật khẩu xác nhận không khớp.', 'warning');
@@ -89,7 +112,7 @@ const UserProfile: React.FC = () => {
         try {
             setSaving(true);
             await userService.verifyAndChangePassword(
-                authUser.email,
+                identifier,
                 passwordData.oldPassword,
                 passwordData.newPassword
             );

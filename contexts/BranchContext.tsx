@@ -47,56 +47,90 @@ export const BranchProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const fetchData = async () => {
     try {
+      console.log('[BranchContext] Starting fetchData...');
       const facilitiesData = await facilityService.getFacilities();
+      console.log('[BranchContext] Facilities fetched:', facilitiesData?.length || 0);
       setFacilities(facilitiesData);
 
-      const { data: { user: authUser } } = await supabase.auth.getUser();
+      console.log('[BranchContext] Getting auth user...');
+      const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+      
+      // Build base query for vgvina_users
+      const baseQuery = supabase
+        .from('vgvina_users')
+        .select(`
+          *,
+          role_details:vgvina_users_role_id_fkey (
+              id,
+              name,
+              display_name,
+              is_admin,
+              permissions:vgvina_role_permissions (
+                  permission:vgvina_permissions (
+                      module,
+                      action
+                  )
+              )
+          ),
+          facilities:vgvina_user_facilities (
+              is_primary,
+              facility_id,
+              facility:vgvina_facilities (
+                  name
+              )
+          )
+        `);
 
-      if (authUser) {
-        // Build query for vgvina_users
-        let query = supabase
-          .from('vgvina_users')
-          .select(`
-            *,
-            role_details:role_id (
-                id,
-                name,
-                display_name,
-                is_admin,
-                permissions:vgvina_role_permissions (
-                    permission:permission_id (
-                        module,
-                        action
-                    )
-                )
-            ),
-            facilities:vgvina_user_facilities (
-                is_primary,
-                facility_id,
-                facility:vgvina_facilities (
-                    name
-                )
-            )
-          `);
+      let matchedUser = null;
+      let userError = null;
 
-        // Match by email OR phone_number, but ONLY if they are not null/undefined
-        const filterParts = [];
-        if (authUser.email) filterParts.push(`email.eq.${authUser.email}`);
-        if (authUser.phone) filterParts.push(`phone_number.eq.${authUser.phone}`);
-
-        if (filterParts.length === 0) {
-          console.warn('[BranchContext] Auth user has no email or phone');
+      if (isHkd) {
+        const localUserStr = localStorage.getItem('hkd_user');
+        if (!localUserStr) {
+          console.warn('[BranchContext] No local user in localStorage for HKD');
           setLoading(false);
           return;
         }
-
-        const { data: matchedUser, error: userError } = await query
-          .or(filterParts.join(','))
+        const localUser = JSON.parse(localUserStr);
+        console.log('[BranchContext] HKD Local user:', localUser.username);
+        
+        const { data, error } = await baseQuery
+          .eq('username', localUser.username)
           .maybeSingle();
+        
+        matchedUser = data;
+        userError = error;
+      } else {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        console.log('[BranchContext] Auth user:', authUser ? authUser.email : 'None');
+
+        if (authUser) {
+          // Match by email OR phone_number, but ONLY if they are not null/undefined
+          const filterParts = [];
+          if (authUser.email) filterParts.push(`email.eq.${authUser.email}`);
+          if (authUser.phone) filterParts.push(`phone_number.eq.${authUser.phone}`);
+
+          if (filterParts.length === 0) {
+            console.warn('[BranchContext] Auth user has no email or phone');
+            setLoading(false);
+            return;
+          }
+
+          console.log('[BranchContext] Fetching matched user profile with query...');
+          const { data, error } = await baseQuery
+            .or(filterParts.join(','))
+            .maybeSingle();
+
+          matchedUser = data;
+          userError = error;
+        }
+      }
 
         if (userError) {
           console.error('[BranchContext] Error fetching user profile:', userError);
         }
+
+        console.log('[BranchContext] Matched user fetched:', matchedUser ? matchedUser.email : 'None');
 
         if (matchedUser) {
           const isAdmin = matchedUser.role_details?.is_admin === true ||
@@ -146,24 +180,23 @@ export const BranchProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setSelectedFacilityId(facilityId);
           }
         } else {
+          console.warn('[BranchContext] Matched user is null, using fallback user info');
           // Fallback
           setCurrentUser({
             id: 0,
-            name: authUser.email || 'User',
+            name: 'User',
             role: 'Admin',
             branch: 'Tất cả chi nhánh',
             avatar: 'https://ui-avatars.com/api/?name=User',
-            email: authUser.email,
+            email: '',
             is_admin: true,
             permissions: [{ module: '*', action: '*' }]
           });
         }
-      } else {
-        console.warn('[BranchContext] No auth user found');
-      }
     } catch (error) {
       console.error('[BranchContext] Error fetching data:', error);
     } finally {
+      console.log('[BranchContext] Setting loading to false');
       setLoading(false);
     }
   };

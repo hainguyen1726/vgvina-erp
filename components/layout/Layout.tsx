@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import ScrollToTopButton from '../ui/ScrollToTopButton';
-import TelegramButton from '../ui/TelegramButton';
 import BottomNav from '../ui/BottomNav';
 
 interface LayoutProps {
@@ -28,7 +27,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </div>
 
       <ScrollToTopButton />
-      <TelegramButton />
       <BottomNav />
     </div>
   );

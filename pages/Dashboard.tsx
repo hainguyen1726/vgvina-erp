@@ -126,6 +126,86 @@ const DetailModal = ({ item, onClose, onEditClick, onDeleteClick, showNotificati
     );
 };
 
+const getDateRanges = (filter: string, customDates?: { from: Date; to: Date }): { currentRange: [Date, Date], previousRange: [Date, Date], lastYearRange: [Date, Date] } => {
+    const now = new Date();
+    let currentStart: Date, currentEnd: Date;
+    let previousStart: Date, previousEnd: Date;
+    let lastYearStart: Date, lastYearEnd: Date;
+
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    switch (filter) {
+        case 'Hôm nay':
+            currentStart = new Date(); currentStart.setHours(0, 0, 0, 0);
+            currentEnd = new Date(currentStart); currentEnd.setHours(23, 59, 59, 999);
+            previousStart = new Date(now.getTime() - 86400000); previousStart.setHours(0, 0, 0, 0);
+            previousEnd = new Date(previousStart); previousEnd.setHours(23, 59, 59, 999);
+            lastYearStart = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), 0, 0, 0, 0);
+            lastYearEnd = new Date(lastYearStart); lastYearEnd.setHours(23, 59, 59, 999);
+            break;
+        case 'Hôm qua':
+            currentStart = new Date(); currentStart.setDate(currentStart.getDate() - 1); currentStart.setHours(0, 0, 0, 0);
+            currentEnd = new Date(currentStart); currentEnd.setHours(23, 59, 59, 999);
+            previousStart = new Date(currentStart.getTime() - 86400000); previousStart.setHours(0, 0, 0, 0);
+            previousEnd = new Date(previousStart); previousEnd.setHours(23, 59, 59, 999);
+            lastYearStart = new Date(currentStart.getFullYear() - 1, currentStart.getMonth(), currentStart.getDate(), 0, 0, 0, 0);
+            lastYearEnd = new Date(lastYearStart); lastYearEnd.setHours(23, 59, 59, 999);
+            break;
+        case 'Tuần này':
+            const dayOfWeek = now.getDay();
+            const diff = now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+            currentStart = new Date(new Date(now.setDate(diff)).setHours(0, 0, 0, 0));
+            currentEnd = endOfToday;
+            previousStart = new Date(currentStart.getTime() - 7 * 86400000);
+            previousEnd = new Date(currentStart.getTime() - 1); previousEnd.setHours(23, 59, 59, 999);
+            lastYearStart = new Date(currentStart.getFullYear() - 1, currentStart.getMonth(), currentStart.getDate());
+            lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), 23, 59, 59, 999);
+            break;
+        case 'Tháng này':
+            currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            currentEnd = endOfToday;
+            previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            previousEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+            lastYearStart = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+            lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth() + 1, 0, 23, 59, 59, 999);
+            break;
+        case 'Quý này':
+            const quarter = Math.floor(now.getMonth() / 3);
+            currentStart = new Date(now.getFullYear(), quarter * 3, 1);
+            currentEnd = endOfToday;
+            previousStart = new Date(now.getFullYear(), quarter * 3 - 3, 1);
+            previousEnd = new Date(now.getFullYear(), quarter * 3, 0, 23, 59, 59, 999);
+            lastYearStart = new Date(now.getFullYear() - 1, quarter * 3, 1);
+            lastYearEnd = new Date(now.getFullYear() - 1, quarter * 3 + 3, 0, 23, 59, 59, 999);
+            break;
+        case 'Năm nay':
+            currentStart = new Date(now.getFullYear(), 0, 1);
+            currentEnd = endOfToday;
+            previousStart = new Date(now.getFullYear() - 1, 0, 1);
+            previousEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+            lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+            lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+            break;
+        case 'Tùy chọn':
+            currentStart = customDates?.from ? new Date(customDates.from) : new Date(0);
+            currentEnd = customDates?.to ? new Date(customDates.to) : new Date();
+            currentStart.setHours(0, 0, 0, 0);
+            currentEnd.setHours(23, 59, 59, 999);
+            const duration = currentEnd.getTime() - currentStart.getTime();
+            previousStart = new Date(currentStart.getTime() - duration);
+            previousEnd = new Date(currentStart.getTime() - 1);
+            lastYearStart = new Date(currentStart.getFullYear() - 1, currentStart.getMonth(), currentStart.getDate());
+            lastYearEnd = new Date(currentEnd.getFullYear() - 1, currentEnd.getMonth(), currentEnd.getDate());
+            break;
+        default: // All time
+            currentStart = new Date(0); currentEnd = new Date();
+            previousStart = new Date(0); previousEnd = new Date(0);
+            lastYearStart = new Date(0); lastYearEnd = new Date(0);
+    }
+    return { currentRange: [currentStart, currentEnd], previousRange: [previousStart, previousEnd], lastYearRange: [lastYearStart, lastYearEnd] };
+};
+
 const Dashboard: React.FC = () => {
     const { showNotification } = useNotification();
     const { can, currentUser, selectedFacilityId } = useBranch();
@@ -159,9 +239,24 @@ const Dashboard: React.FC = () => {
         const fetchDashboardData = async () => {
             try {
                 setLoading(true);
+
+                // Calculate the oldest date required by the dashboard timeFilter to filter the database query
+                let startDate: string | undefined = undefined;
+                if (timeFilter.filter !== 'All time') {
+                    const { currentRange, previousRange, lastYearRange } = getDateRanges(timeFilter.filter, timeFilter.dates);
+                    const minTime = Math.min(
+                        currentRange[0].getTime(),
+                        previousRange[0].getTime(),
+                        lastYearRange[0].getTime()
+                    );
+                    if (minTime > 0) {
+                        startDate = new Date(minTime).toISOString().split('T')[0];
+                    }
+                }
+
                 const [txs, orders, debtsData, stockSummary] = await Promise.all([
-                    transactionService.getTransactions(undefined, undefined, selectedFacilityId || undefined),
-                    orderService.getSalesOrders(selectedFacilityId || undefined),
+                    transactionService.getTransactions(undefined, undefined, selectedFacilityId || undefined, undefined, undefined, startDate),
+                    orderService.getSalesOrders(selectedFacilityId || undefined, undefined, startDate),
                     debtService.getDebts(selectedFacilityId || undefined),
                     productService.getInventoryValueAtCost(selectedFacilityId || undefined)
                 ]);
@@ -202,7 +297,7 @@ const Dashboard: React.FC = () => {
         };
         fetchDashboardData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedFacilityId, currentUser]);
+    }, [selectedFacilityId, currentUser, timeFilter]);
 
     const handleTimeFilterChange = (filter: string, dates?: { from: Date; to: Date }) => {
         setTimeFilter({ filter, dates });
@@ -250,87 +345,6 @@ const Dashboard: React.FC = () => {
     };
 
     const processedData = useMemo(() => {
-        // Fix: Added explicit return type to ensure TypeScript infers ranges as [Date, Date] tuples.
-        const getDateRanges = (filter: string, customDates?: { from: Date; to: Date }): { currentRange: [Date, Date], previousRange: [Date, Date], lastYearRange: [Date, Date] } => {
-            const now = new Date();
-            let currentStart: Date, currentEnd: Date;
-            let previousStart: Date, previousEnd: Date;
-            let lastYearStart: Date, lastYearEnd: Date;
-
-            const endOfToday = new Date();
-            endOfToday.setHours(23, 59, 59, 999);
-
-            switch (filter) {
-                case 'Hôm nay':
-                    currentStart = new Date(); currentStart.setHours(0, 0, 0, 0);
-                    currentEnd = new Date(currentStart); currentEnd.setHours(23, 59, 59, 999);
-                    previousStart = new Date(now.getTime() - 86400000); previousStart.setHours(0, 0, 0, 0);
-                    previousEnd = new Date(previousStart); previousEnd.setHours(23, 59, 59, 999);
-                    lastYearStart = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), 0, 0, 0, 0);
-                    lastYearEnd = new Date(lastYearStart); lastYearEnd.setHours(23, 59, 59, 999);
-                    break;
-                case 'Hôm qua':
-                    currentStart = new Date(); currentStart.setDate(currentStart.getDate() - 1); currentStart.setHours(0, 0, 0, 0);
-                    currentEnd = new Date(currentStart); currentEnd.setHours(23, 59, 59, 999);
-                    previousStart = new Date(currentStart.getTime() - 86400000); previousStart.setHours(0, 0, 0, 0);
-                    previousEnd = new Date(previousStart); previousEnd.setHours(23, 59, 59, 999);
-                    lastYearStart = new Date(currentStart.getFullYear() - 1, currentStart.getMonth(), currentStart.getDate(), 0, 0, 0, 0);
-                    lastYearEnd = new Date(lastYearStart); lastYearEnd.setHours(23, 59, 59, 999);
-                    break;
-                case 'Tuần này':
-                    const dayOfWeek = now.getDay();
-                    const diff = now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
-                    currentStart = new Date(new Date(now.setDate(diff)).setHours(0, 0, 0, 0));
-                    currentEnd = endOfToday;
-                    previousStart = new Date(currentStart.getTime() - 7 * 86400000);
-                    previousEnd = new Date(currentStart.getTime() - 1); previousEnd.setHours(23, 59, 59, 999);
-                    lastYearStart = new Date(currentStart.getFullYear() - 1, currentStart.getMonth(), currentStart.getDate());
-                    lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), 23, 59, 59, 999);
-                    break;
-                case 'Tháng này':
-                    currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                    currentEnd = endOfToday;
-                    previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                    previousEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-                    lastYearStart = new Date(now.getFullYear() - 1, now.getMonth(), 1);
-                    lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth() + 1, 0, 23, 59, 59, 999);
-                    break;
-                case 'Quý này':
-                    const quarter = Math.floor(now.getMonth() / 3);
-                    currentStart = new Date(now.getFullYear(), quarter * 3, 1);
-                    currentEnd = endOfToday;
-                    previousStart = new Date(now.getFullYear(), quarter * 3 - 3, 1);
-                    previousEnd = new Date(now.getFullYear(), quarter * 3, 0, 23, 59, 59, 999);
-                    lastYearStart = new Date(now.getFullYear() - 1, quarter * 3, 1);
-                    lastYearEnd = new Date(now.getFullYear() - 1, quarter * 3 + 3, 0, 23, 59, 59, 999);
-                    break;
-                case 'Năm nay':
-                    currentStart = new Date(now.getFullYear(), 0, 1);
-                    currentEnd = endOfToday;
-                    previousStart = new Date(now.getFullYear() - 1, 0, 1);
-                    previousEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
-                    lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
-                    lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
-                    break;
-                case 'Tùy chọn':
-                    currentStart = customDates?.from ? new Date(customDates.from) : new Date(0);
-                    currentEnd = customDates?.to ? new Date(customDates.to) : new Date();
-                    currentStart.setHours(0, 0, 0, 0);
-                    currentEnd.setHours(23, 59, 59, 999);
-                    const duration = currentEnd.getTime() - currentStart.getTime();
-                    previousStart = new Date(currentStart.getTime() - duration);
-                    previousEnd = new Date(currentStart.getTime() - 1);
-                    lastYearStart = new Date(currentStart.getFullYear() - 1, currentStart.getMonth(), currentStart.getDate());
-                    lastYearEnd = new Date(currentEnd.getFullYear() - 1, currentEnd.getMonth(), currentEnd.getDate());
-                    break;
-                default: // All time
-                    currentStart = new Date(0); currentEnd = new Date();
-                    previousStart = new Date(0); previousEnd = new Date(0);
-                    lastYearStart = new Date(0); lastYearEnd = new Date(0);
-            }
-            return { currentRange: [currentStart, currentEnd], previousRange: [previousStart, previousEnd], lastYearRange: [lastYearStart, lastYearEnd] };
-        };
-
         const { currentRange, previousRange, lastYearRange } = getDateRanges(timeFilter.filter, timeFilter.dates);
 
         const dataSet = metricType === 'sales' ? salesOrders : transactions.filter(t => t.type === TransactionType.EXPENSE);
@@ -501,7 +515,7 @@ const Dashboard: React.FC = () => {
 
     return (
         <>
-            <FilterBar onSearch={() => { }} onTimeFilterChange={handleTimeFilterChange} pageTitle={Page.Dashboard} />
+            <FilterBar onSearch={() => { }} onTimeFilterChange={handleTimeFilterChange} pageTitle={Page.Dashboard} initialFilter="Tháng này" />
 
             <div className="bg-white py-4 px-2 md:p-4 rounded-lg shadow-sm mt-4">
                 <div className="flex items-center justify-between mb-4">

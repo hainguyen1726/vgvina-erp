@@ -535,14 +535,14 @@ const Debt: React.FC = () => {
   const [itemToDelete, setItemToDelete] = useState<DebtType | null>(null);
   const [dataToImport, setDataToImport] = useState<Omit<DebtType, 'id'>[] | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
-  const [timeFilter, setTimeFilter] = useState<{ filter: string; dates?: { from: Date; to: Date } }>({ filter: 'All time' });
+  const [timeFilter, setTimeFilter] = useState<{ filter: string; dates?: { from: Date; to: Date } }>({ filter: 'Tháng này' });
   const [selectedPartnerName, setSelectedPartnerName] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [debtToEdit, setDebtToEdit] = useState<DebtType | null>(null);
   const [expandedDebtId, setExpandedDebtId] = useState<string | null>(null);
   const [statementData, setStatementData] = useState<any[]>([]);
   const [loadingStatement, setLoadingStatement] = useState(false);
-  const [expandedTimeFilter, setExpandedTimeFilter] = useState<string>('All time');
+  const [expandedTimeFilter, setExpandedTimeFilter] = useState<string>('Tháng này');
   const [expandedFromDate, setExpandedFromDate] = useState<string>('');
   const [expandedToDate, setExpandedToDate] = useState<string>('');
   const [salesModalItem, setSalesModalItem] = useState<any | null>(null);
@@ -1353,7 +1353,7 @@ const Debt: React.FC = () => {
 
   return (
     <>
-      <FilterBar onSearch={setSearchTerm} onTimeFilterChange={handleTimeFilterChange} pageTitle="Công nợ" />
+      <FilterBar onSearch={setSearchTerm} onTimeFilterChange={handleTimeFilterChange} pageTitle="Công nợ" initialFilter="Tháng này" />
 
       {/* Desktop Summary Cards */}
       <div className="hidden md:flex space-x-4 mb-4">

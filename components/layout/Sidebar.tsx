@@ -16,7 +16,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
   const canViewAdmin = currentUser?.role ? allowedAdminRoles.includes(currentUser.role) : false;
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+    if (isHkd) {
+      localStorage.removeItem('hkd_user');
+    } else {
+      await supabase.auth.signOut();
+    }
     window.location.href = '/#/login';
   };
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -83,6 +88,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
     setOpenMenu(openMenu === name ? null : name);
   };
 
+  const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+
   return (
     <aside className={`hidden md:flex flex-col bg-white shadow-md transition-all duration-300 fixed top-0 left-0 h-full z-30 ${isCollapsed ? 'w-20' : 'w-64'}`}>
       {/* Header: Logo + Collapse Toggle */}
@@ -90,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
         {!isCollapsed && (
           <div className="flex items-center">
             <svg className="w-8 h-8 text-[#0066cc]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01" /></svg>
-            <span className="ml-2 font-bold text-xl text-[#0066cc]">VGVINA</span>
+            <span className="ml-2 font-bold text-xl text-[#0066cc]">{isHkd ? 'Tuổi Ngọc' : 'VGVINA'}</span>
           </div>
         )}
         <button

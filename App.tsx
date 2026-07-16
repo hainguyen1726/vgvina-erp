@@ -100,6 +100,18 @@ const ProtectedRoutes = ({ children }: { children: React.ReactElement }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+    if (isHkd) {
+      const localUser = localStorage.getItem('hkd_user');
+      if (localUser) {
+        setSession({ user: JSON.parse(localUser) });
+      } else {
+        setSession(null);
+      }
+      setLoading(false);
+      return;
+    }
+
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -135,6 +147,26 @@ const ProtectedRoutes = ({ children }: { children: React.ReactElement }) => {
 };
 
 const App: React.FC = () => {
+  useEffect(() => {
+    const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+    if (isHkd) {
+      document.title = 'Tuổi Ngọc';
+      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="90" font-size="90">💚</text></svg>';
+    } else {
+      document.title = 'VGVINA';
+      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (link) {
+        link.href = '/favicon.ico';
+      }
+    }
+  }, []);
+
   return (
     <NotificationProvider>
       <Notification />

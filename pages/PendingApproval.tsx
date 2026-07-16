@@ -8,7 +8,12 @@ const PendingApproval: React.FC = () => {
     const navigate = useNavigate();
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
+        const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+        if (isHkd) {
+            localStorage.removeItem('hkd_user');
+        } else {
+            await supabase.auth.signOut();
+        }
         navigate('/login');
     };
 

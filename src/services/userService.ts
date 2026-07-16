@@ -260,6 +260,7 @@ export const userService = {
         username: string;
     }): Promise<any> {
         console.log('[userService] Creating user:', userData);
+        const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
 
         // 1. Check if username already exists
         const exists = await this.checkUsernameExists(userData.username);
@@ -268,16 +269,22 @@ export const userService = {
         }
 
         // 2. Insert into vgvina_users
+        const insertData: any = {
+            email: userData.email,
+            username: userData.username,
+            full_name: userData.fullName,
+            phone_number: userData.phone,
+            role_id: userData.roleId || null,
+            status: 'Active',
+        };
+
+        if (isHkd && userData.password) {
+            insertData.password_hash = userData.password;
+        }
+
         const { data: newUser, error: dbError } = await supabase
             .from('vgvina_users')
-            .insert({
-                email: userData.email,
-                username: userData.username,
-                full_name: userData.fullName,
-                phone_number: userData.phone,
-                role_id: userData.roleId || null,
-                status: 'Active',
-            })
+            .insert(insertData)
             .select()
             .single();
 
@@ -306,8 +313,8 @@ export const userService = {
             await supabase.from('vgvina_user_facilities').insert(rows);
         }
 
-        // 3. Attempt to create Auth User via RPC if password provided
-        if (userData.password) {
+        // 3. Attempt to create Auth User via RPC if password provided (only for main site)
+        if (!isHkd && userData.password) {
             const { error: rpcError } = await supabase.rpc('admin_create_user', {
                 email: userData.email,
                 password: userData.password,
@@ -340,6 +347,17 @@ export const userService = {
         if (!email) {
             throw new Error('User does not have an email address to reset password.');
         }
+        const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+
+        if (isHkd) {
+            const { data, error } = await supabase
+                .from('vgvina_users')
+                .update({ password_hash: newPassword })
+                .eq('email', email)
+                .select();
+            if (error) throw error;
+            return data;
+        }
 
         // Try RPC first
         const { data, error } = await supabase.rpc('admin_reset_password_via_email', {
@@ -368,6 +386,25 @@ export const userService = {
     },
 
     async verifyAndChangePassword(email: string, oldPassword: string, newPassword: string): Promise<void> {
+        const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+
+        if (isHkd) {
+            const { data, error } = await supabase
+                .from('vgvina_users')
+                .select('password_hash')
+                .or(`email.eq.${email},username.eq.${email}`)
+                .single();
+            if (error || !data || data.password_hash !== oldPassword) {
+                throw new Error('Mật khẩu cũ không chính xác.');
+            }
+            const { error: updateError } = await supabase
+                .from('vgvina_users')
+                .update({ password_hash: newPassword })
+                .or(`email.eq.${email},username.eq.${email}`);
+            if (updateError) throw updateError;
+            return;
+        }
+
         // 1. Verify old password by attempting to sign in
         const { error: signInError } = await supabase.auth.signInWithPassword({
             email,
@@ -390,6 +427,14 @@ export const userService = {
     },
 
     async deleteUser(userId: number): Promise<void> {
+        const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
+
+        if (isHkd) {
+            const { error } = await supabase.from('vgvina_users').delete().eq('id', userId);
+            if (error) throw error;
+            return;
+        }
+
         const { error } = await supabase.rpc('admin_delete_user', {
             target_user_id: userId
         });

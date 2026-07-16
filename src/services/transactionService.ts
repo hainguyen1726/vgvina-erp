@@ -120,7 +120,15 @@ export const transactionService = {
         }
     },
 
-    async getTransactions(type?: TransactionType | string, accountId?: string, facilityId?: string, employeeId?: number, partnerId?: string): Promise<FinancialTransaction[]> {
+    async getTransactions(
+        type?: TransactionType | string, 
+        accountId?: string, 
+        facilityId?: string, 
+        employeeId?: number, 
+        partnerId?: string,
+        startDate?: string,
+        endDate?: string
+    ): Promise<FinancialTransaction[]> {
         let query = supabase.from('vgvina_financial_transactions')
             .select(`
                 *,
@@ -152,12 +160,15 @@ export const transactionService = {
 
         if (employeeId) {
             // Filter transactions where employeeId is in the assignees list
-            // Note: Supabase doesn't support complex join filtering directly in simple .select() 
-            // without using a RPC or specific filter syntax if the relationship is set up.
-            // For now, if we have many-to-many, we can filter by the junction table.
-
-            // Re-fetch using the junction table filter
             query = query.filter('vgvina_transaction_assignees.employee_id', 'eq', employeeId);
+        }
+
+        if (startDate) {
+            query = query.gte('transaction_date', startDate);
+        }
+
+        if (endDate) {
+            query = query.lte('transaction_date', endDate);
         }
 
         const { data, error } = await query;
