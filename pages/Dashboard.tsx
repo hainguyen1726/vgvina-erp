@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { formatDate } from '../src/utils/dateUtils';
 import { Link } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import FilterBar from '../components/ui/FilterBar';
 import SummaryCard from '../components/ui/SummaryCard';
 import { Page, FinancialTransaction, TransactionType, SalesOrder, DebtStatus, OrderStatus } from '../types';
@@ -566,7 +566,23 @@ const Dashboard: React.FC = () => {
                                 />
                                 <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(value) => new Intl.NumberFormat('vi-VN', { notation: "compact", maximumFractionDigits: 1 }).format(value as number)} />
                                 <Tooltip formatter={(value: number) => `${value.toLocaleString('vi-VN')} ₫`} />
-                                <Bar dataKey="value" fill={metricType === 'sales' ? '#22c55e' : '#ef4444'} radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="value" fill={metricType === 'sales' ? '#22c55e' : '#ef4444'} radius={[4, 4, 0, 0]}>
+                                    <LabelList
+                                        dataKey="value"
+                                        position="insideTop"
+                                        fill="#ffffff"
+                                        fontSize={9}
+                                        fontWeight="600"
+                                        dy={10}
+                                        formatter={(val: number) => {
+                                            if (!val || val === 0) return '';
+                                            return new Intl.NumberFormat('vi-VN', {
+                                                notation: 'compact',
+                                                maximumFractionDigits: 0
+                                            }).format(val);
+                                        }}
+                                    />
+                                </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     ) : (
