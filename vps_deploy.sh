@@ -50,8 +50,8 @@ fi
 
 echo "=== [4/4] Copying build files to Web Root ==="
 mkdir -p "$WEB_ROOT"
-# Clean old files
-rm -rf "${WEB_ROOT:?}"/*
+# Clean old files (Hardcoded absolute path to prevent empty variable deletion issues)
+rm -rf /home/admin/domains/baocao.vgvina.com/public_html/*
 # Copy new build
 cp -r dist/* "$WEB_ROOT/"
 
