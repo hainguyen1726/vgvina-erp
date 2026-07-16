@@ -31,13 +31,24 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name: Deploy to VPS via SSH/SFTP
-        uses: easingthemes/ssh-deploy@main
-        with:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          ARGS: "-rlgoDzvc -i --delete"
-          SOURCE: "dist/"
-          REMOTE_HOST: ${{ secrets.SSH_HOST }}
-          REMOTE_USER: ${{ secrets.SSH_USER }}
-          TARGET: "/home/admin/domains/baocao.vgvina.com/public_html"
-          EXCLUDE: "/dist/, /node_modules/"
+      - name: Compress Build Output
+        run: tar -czf dist.tar.gz -C dist .
+
+      - name: Setup SSH key and Upload to VPS
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+          # Upload build package
+          scp -o StrictHostKeyChecking=no dist.tar.gz root@${{ secrets.SSH_HOST }}:/tmp/dist.tar.gz
+          
+          # Upload deploy script
+          scp -o StrictHostKeyChecking=no scratch/deploy_vps.sh root@${{ secrets.SSH_HOST }}:/tmp/deploy_vps.sh
+
+      - name: Execute Safe Deployment on VPS
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SSH_HOST }} "bash /tmp/deploy_vps.sh"
