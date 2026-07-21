@@ -261,7 +261,12 @@ const Dashboard: React.FC = () => {
                     productService.getInventoryValueAtCost(selectedFacilityId || undefined)
                 ]);
 
-                const filteredTxs = txs.filter(t => t.account_name !== 'TK KN' && t.account_name !== 'TK Nợ NCC');
+                // Filter internal accounting entries (TK KN, TK Nợ NCC) only for VGVINA.
+                // HKD only uses these two accounts, so filtering would remove all transactions.
+                const isHkdSite = window.location.hostname === 'hkd.vgvina.com' || window.location.hostname.includes('hkd');
+                const filteredTxs = isHkdSite
+                    ? txs
+                    : txs.filter(t => t.account_name !== 'TK KN' && t.account_name !== 'TK Nợ NCC');
                 setTransactions(filteredTxs);
                 setSalesOrders(orders);
                 setDebts(debtsData);
