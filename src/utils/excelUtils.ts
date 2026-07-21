@@ -1,12 +1,28 @@
 import * as XLSX from 'xlsx-js-style';
 import { numberToWords } from './numberToWords';
+import { getCompanyInfo } from './companyInfo';
+
+export const getCompanyUnitHeader = () => {
+    const company = getCompanyInfo();
+    let text = `Đơn vị: ${company.name}`;
+    if (company.taxCode) text += ` | MST: ${company.taxCode}`;
+    text += ` | ĐT: ${company.phone}`;
+    return text;
+};
+
+export const getFileNameWithPrefix = (fileName: string) => {
+    const company = getCompanyInfo();
+    const prefix = company.isHkd ? 'TuoiNgoc_' : '';
+    if (fileName.startsWith('TuoiNgoc_')) return fileName;
+    return `${prefix}${fileName}`;
+};
 
 export const excelUtils = {
     exportToExcel: <T>(data: T[], fileName: string, sheetName: string = 'Sheet1') => {
         const worksheet = XLSX.utils.json_to_sheet(data);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-        XLSX.writeFile(workbook, `${fileName}.xlsx`);
+        XLSX.writeFile(workbook, `${getFileNameWithPrefix(fileName)}.xlsx`);
     },
 
     exportTemplate: (columns: string[], fileName: string) => {
@@ -39,7 +55,7 @@ export const excelUtils = {
         }
 
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
-        XLSX.writeFile(workbook, `${fileName}_Template.xlsx`);
+        XLSX.writeFile(workbook, `${getFileNameWithPrefix(fileName)}_Template.xlsx`);
     },
 
     readExcel: (file: File): Promise<any[]> => {
@@ -225,7 +241,7 @@ export const excelUtils = {
         }
 
         XLSX.utils.book_append_sheet(wb, ws, 'BigProductBySaleByCat');
-        XLSX.writeFile(wb, `${fileName}.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix(fileName)}.xlsx`);
     },
 
     exportInventorySummaryStyled: (
@@ -359,7 +375,7 @@ export const excelUtils = {
         }
 
         XLSX.utils.book_append_sheet(wb, ws, 'ProducInOutStock');
-        XLSX.writeFile(wb, `${fileName}.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix(fileName)}.xlsx`);
     },
 
     exportPartnersStyled: (
@@ -506,7 +522,7 @@ export const excelUtils = {
         }
 
         XLSX.utils.book_append_sheet(wb, ws, 'DanhSachDoiTac');
-        XLSX.writeFile(wb, `${fileName}.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix(fileName)}.xlsx`);
     },
 
     exportDebtsStyled: (
@@ -661,7 +677,7 @@ export const excelUtils = {
         }
 
         XLSX.utils.book_append_sheet(wb, ws, 'DanhSachCongNo');
-        XLSX.writeFile(wb, `${fileName}.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix(fileName)}.xlsx`);
     },
 
     exportPartnerStatementStyled: (
@@ -822,7 +838,7 @@ export const excelUtils = {
         }
 
         XLSX.utils.book_append_sheet(wb, ws, 'SoChiTietCongNo');
-        XLSX.writeFile(wb, `${fileName}.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix(fileName)}.xlsx`);
     },
 
     exportInventoryCard: (
@@ -956,7 +972,7 @@ export const excelUtils = {
         }
 
         XLSX.utils.book_append_sheet(wb, ws, 'TheKhoChiTiet');
-        XLSX.writeFile(wb, `${fileName}.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix(fileName)}.xlsx`);
     },
 
     exportInventoryList: (
@@ -1101,7 +1117,7 @@ export const excelUtils = {
         }
 
         XLSX.utils.book_append_sheet(wb, ws, 'DanhSachTonKho');
-        XLSX.writeFile(wb, `${fileName}.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix(fileName)}.xlsx`);
     },
 
     exportOrdersKiotVietStyle: (
@@ -1262,7 +1278,7 @@ export const excelUtils = {
         }
 
         XLSX.utils.book_append_sheet(wb, ws, isExport ? 'BaoCaoXuat' : 'BaoCaoNhap');
-        XLSX.writeFile(wb, `${fileName}.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix(fileName)}.xlsx`);
     },
 
     exportReturnVoucherStyled: (item: any) => {
@@ -1356,7 +1372,7 @@ export const excelUtils = {
         }
 
         XLSX.utils.book_append_sheet(wb, ws, 'PhieuTraHang');
-        XLSX.writeFile(wb, `${item.code}_TraHang.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix(item.code)}_TraHang.xlsx`);
     },
 
     exportDebtAgingReport: (
@@ -1603,7 +1619,7 @@ export const excelUtils = {
 
         XLSX.utils.book_append_sheet(wb, wsSale, 'TongHopTheoSale');
 
-        XLSX.writeFile(wb, `${fileName}.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix(fileName)}.xlsx`);
     },
 
     exportReturnVouchersListStyled: (data: any[], facilityName: string = 'Tất cả') => {
@@ -1695,7 +1711,7 @@ export const excelUtils = {
         }
 
         XLSX.utils.book_append_sheet(wb, ws, 'BaoCaoTraHang');
-        XLSX.writeFile(wb, `BaoCao_TraHang_${now.getDate().toString().padStart(2, '0')}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getFullYear()}.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix('BaoCao_TraHang_' + now.getDate().toString().padStart(2, '0'))}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getFullYear()}.xlsx`);
     },
 
     exportFinancialTransactionsStyled: (
@@ -1869,17 +1885,21 @@ export const excelUtils = {
         }
 
         XLSX.utils.book_append_sheet(wb, ws, 'BaoCaoThuChi');
-        XLSX.writeFile(wb, `${fileName}.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix(fileName)}.xlsx`);
     },
 
     exportIncomeExpenseVoucherStyled: (item: any) => {
         const wb = XLSX.utils.book_new();
         const now = new Date();
         const currentDateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        const company = getCompanyInfo();
         
         const isIncome = item.type === 'INCOME';
         const titleText = isIncome ? 'PHIẾU THU' : 'PHIẾU CHI';
         const titleColor = isIncome ? '00B050' : 'C00000'; // Green for Income, Red for Expense
+        const bankLine = company.bankInfo
+            ? `NH: ${company.bankInfo.bankName}${company.bankInfo.branch ? ' - ' + company.bankInfo.branch : ''} | STK: ${company.bankInfo.accountNumber} | CTK: ${company.bankInfo.accountHolder}`
+            : '';
 
         const labelStyle = {
             font: { bold: true, name: 'Arial', sz: 10 },
@@ -1892,9 +1912,10 @@ export const excelUtils = {
         };
 
         const wsData: any[][] = [
+            [company.name, null, null, titleText],
+            [`${company.address} | ĐT: ${company.phone}${company.taxCode ? ' | MST: ' + company.taxCode : ''}`, null, null, item.code],
             [],
-            [`Ngày lập: ${currentDateStr}`, null, null, titleText],
-            [null, null, null, item.code],
+            [`Ngày lập: ${currentDateStr}`],
             [],
             [isIncome ? 'Người nộp tiền:' : 'Người nhận tiền:', item.partner_name || 'N/A'],
             ['Ngày giao dịch:', item.transaction_date ? new Date(item.transaction_date).toLocaleDateString('vi-VN') : ''],
@@ -1903,27 +1924,37 @@ export const excelUtils = {
             ['Lý do thu/chi:', item.description || ''],
             [],
             ['Số tiền:', item.amount || 0],
-            ['Bằng chữ:', numberToWords(item.amount || 0)]
+            ['Bằng chữ:', numberToWords(item.amount || 0)],
+            [],
+            ...(bankLine ? [['Thông tin NH:', bankLine]] : []),
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-        // Title styling
-        const titleRef = XLSX.utils.encode_cell({ r: 1, c: 3 });
-        const codeRef = XLSX.utils.encode_cell({ r: 2, c: 3 });
-        const dateRef = XLSX.utils.encode_cell({ r: 1, c: 0 });
+        // Title styling (r0 = company name + title, r1 = address + code, r3 = date)
+        const titleRef = XLSX.utils.encode_cell({ r: 0, c: 3 });
+        const codeRef = XLSX.utils.encode_cell({ r: 1, c: 3 });
+        const companyNameRef = XLSX.utils.encode_cell({ r: 0, c: 0 });
+        const addressRef = XLSX.utils.encode_cell({ r: 1, c: 0 });
+        const dateRef = XLSX.utils.encode_cell({ r: 3, c: 0 });
         if (ws[titleRef]) ws[titleRef].s = { font: { bold: true, sz: 16, name: 'Arial', color: { rgb: titleColor } }, alignment: { horizontal: 'center' } };
         if (ws[codeRef]) ws[codeRef].s = { font: { bold: true, sz: 12, name: 'Arial', color: { rgb: '555555' } }, alignment: { horizontal: 'center' } };
+        if (ws[companyNameRef]) ws[companyNameRef].s = { font: { bold: true, sz: 11, name: 'Arial' }, alignment: { horizontal: 'left' } };
+        if (ws[addressRef]) ws[addressRef].s = { font: { italic: true, sz: 9, name: 'Arial', color: { rgb: '555555' } }, alignment: { horizontal: 'left' } };
         if (ws[dateRef]) ws[dateRef].s = { font: { italic: true, sz: 10, name: 'Arial', color: { rgb: '555555' } } };
 
         ws['!merges'] = [
-            { s: { r: 1, c: 3 }, e: { r: 1, c: 6 } }, // Title merge
-            { s: { r: 2, c: 3 }, e: { r: 2, c: 6 } }, // Code merge
-            { s: { r: 4, c: 1 }, e: { r: 4, c: 6 } }, // Partner merge
-            { s: { r: 5, c: 1 }, e: { r: 5, c: 6 } }, // Date merge
-            { s: { r: 7, c: 1 }, e: { r: 7, c: 6 } }, // Employee merge
-            { s: { r: 8, c: 1 }, e: { r: 8, c: 6 } }, // Description merge
-            { s: { r: 11, c: 1 }, e: { r: 11, c: 6 } }, // Words merge
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },  // Company name merge
+            { s: { r: 0, c: 3 }, e: { r: 0, c: 6 } },  // Title merge
+            { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },  // Address merge
+            { s: { r: 1, c: 3 }, e: { r: 1, c: 6 } },  // Code merge
+            { s: { r: 3, c: 0 }, e: { r: 3, c: 6 } },  // Date merge
+            { s: { r: 5, c: 1 }, e: { r: 5, c: 6 } },  // Partner merge
+            { s: { r: 6, c: 1 }, e: { r: 6, c: 6 } },  // Date merge
+            { s: { r: 8, c: 1 }, e: { r: 8, c: 6 } },  // Employee merge
+            { s: { r: 9, c: 1 }, e: { r: 9, c: 6 } },  // Description merge
+            { s: { r: 12, c: 1 }, e: { r: 12, c: 6 } }, // Words merge
+            ...(bankLine ? [{ s: { r: 14, c: 1 }, e: { r: 14, c: 6 } }] : []), // Bank info merge
         ];
 
         ws['!cols'] = [
@@ -1931,17 +1962,17 @@ export const excelUtils = {
         ];
 
         // Format individual cells
-        const labelRows = [4, 5, 6, 7, 8, 10, 11];
+        const labelRows = [5, 6, 7, 8, 9, 11, 12];
         labelRows.forEach(r => {
             const cellRefLabel = XLSX.utils.encode_cell({ r, c: 0 });
             if (ws[cellRefLabel]) ws[cellRefLabel].s = labelStyle;
             
             const cellRefValue = XLSX.utils.encode_cell({ r, c: 1 });
             if (ws[cellRefValue]) {
-                if (r === 10) { // Money amount row
+                if (r === 11) { // Money amount row
                     ws[cellRefValue].s = { font: { bold: true, sz: 12, name: 'Arial', color: { rgb: titleColor } }, alignment: { horizontal: 'left' } };
-                    ws[cellRefValue].z = '#,##0 "₫"';
-                } else if (r === 11) { // Words row
+                    ws[cellRefValue].z = '#,##0 "\u20ab"';
+                } else if (r === 12) { // Words row
                     ws[cellRefValue].s = { font: { italic: true, name: 'Arial', sz: 10 }, alignment: { horizontal: 'left' } };
                 } else {
                     ws[cellRefValue].s = valueStyle;
@@ -1949,13 +1980,21 @@ export const excelUtils = {
             }
         });
 
-        // Hạng mục label and value
-        const cellRefCatLabel = XLSX.utils.encode_cell({ r: 6, c: 3 });
+        // Hạng mục label and value (row 7)
+        const cellRefCatLabel = XLSX.utils.encode_cell({ r: 7, c: 3 });
         if (ws[cellRefCatLabel]) ws[cellRefCatLabel].s = labelStyle;
-        const cellRefCatValue = XLSX.utils.encode_cell({ r: 6, c: 4 });
+        const cellRefCatValue = XLSX.utils.encode_cell({ r: 7, c: 4 });
         if (ws[cellRefCatValue]) ws[cellRefCatValue].s = valueStyle;
 
+        // Bank info row styling
+        if (bankLine) {
+            const bankLabelRef = XLSX.utils.encode_cell({ r: 14, c: 0 });
+            const bankValueRef = XLSX.utils.encode_cell({ r: 14, c: 1 });
+            if (ws[bankLabelRef]) ws[bankLabelRef].s = labelStyle;
+            if (ws[bankValueRef]) ws[bankValueRef].s = { font: { name: 'Arial', sz: 9, italic: true, color: { rgb: '555555' } }, alignment: { horizontal: 'left' } };
+        }
+
         XLSX.utils.book_append_sheet(wb, ws, titleText);
-        XLSX.writeFile(wb, `${item.code}.xlsx`);
+        XLSX.writeFile(wb, `${getFileNameWithPrefix(item.code)}.xlsx`);
     }
 };

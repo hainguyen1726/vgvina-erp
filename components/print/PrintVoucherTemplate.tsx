@@ -1,6 +1,7 @@
 import React from 'react';
 import { Partner, User, TransactionType, OrderItem, SalesOrder, PurchaseOrder, PartnerType } from '../../types';
 import { numberToWords } from '../../src/utils/numberToWords';
+import { getCompanyInfo } from '../../src/utils/companyInfo';
 
 interface VoucherData {
     code?: string;
@@ -30,6 +31,8 @@ interface PrintVoucherTemplateProps {
 }
 
 const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType, data }) => {
+    const company = getCompanyInfo();
+
     const getVoucherTypeLabel = (type: string) => {
         switch (type) {
             case 'income-expense-voucher':
@@ -58,7 +61,7 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
 
     const PrintFooter = () => (
         <div className="print-footer hidden print:flex">
-            <span>VGVINA</span>
+            <span>{company.footerText}</span>
         </div>
     );
 
@@ -70,9 +73,10 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                 {/* Header */}
                 <div className="flex justify-between mb-6">
                     <div>
-                        <h3 className="font-bold text-base uppercase">CÔNG TY CP THỰC PHẨM ECO ORGANIC NHA TRANG</h3>
-                        <p>Địa chỉ: Thôn Cát Lợi, Xã Vĩnh Lương, TP. Nha Trang, Khánh Hòa</p>
-                        <p>Điện thoại: 0906473768</p>
+                        <h3 className="font-bold text-base uppercase">{company.name}</h3>
+                        {company.taxCode && <p>MST/Mã số HKD: {company.taxCode}</p>}
+                        <p>Địa chỉ: {company.address}</p>
+                        <p>Điện thoại: {company.phone}</p>
                     </div>
                 </div>
 
@@ -145,9 +149,12 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                 {data.partnerType === 'CUSTOMER' && (
                     <div className="mb-8 pl-4 border-l-4 border-gray-300 text-xs italic">
                         <p className="font-bold mb-1">Quý khách vui lòng thanh toán bằng TM hoặc CK theo thông tin tài khoản dưới đây:</p>
-                        <p>- Ngân hàng: <span className="font-bold">{data.bankInfo?.bankName || '...'}</span></p>
-                        <p>- Số tài khoản: <span className="font-bold">{data.bankInfo?.accountNumber || '...'}</span></p>
-                        <p>- Chủ tài khoản: <span className="font-bold">{data.bankInfo?.accountHolder || '...'}</span></p>
+                        <p>- Ngân hàng: <span className="font-bold">{data.bankInfo?.bankName || company.bankInfo?.bankName || '...'}{(data.bankInfo?.branch || company.bankInfo?.branch) ? ` - ${data.bankInfo?.branch || company.bankInfo?.branch}` : ''}</span></p>
+                        <p>- Số tài khoản: <span className="font-bold">{data.bankInfo?.accountNumber || company.bankInfo?.accountNumber || '...'}</span></p>
+                        <p>- Chủ tài khoản: <span className="font-bold">{data.bankInfo?.accountHolder || company.bankInfo?.accountHolder || '...'}</span></p>
+                        {(data.bankInfo?.swiftCode || company.bankInfo?.swiftCode) && (
+                            <p>- SWIFT Code: <span className="font-bold">{data.bankInfo?.swiftCode || company.bankInfo?.swiftCode}</span></p>
+                        )}
                     </div>
                 )}
 
@@ -180,9 +187,10 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                 {/* Header */}
                 <div className="flex justify-between mb-6">
                     <div>
-                        <h3 className="font-bold text-base uppercase">CÔNG TY CP THỰC PHẨM ECO ORGANIC NHA TRANG</h3>
-                        <p>Địa chỉ: Thôn Cát Lợi, Xã Vĩnh Lương, TP. Nha Trang, Khánh Hòa</p>
-                        <p>Điện thoại: 0906473768</p>
+                        <h3 className="font-bold text-base uppercase">{company.name}</h3>
+                        {company.taxCode && <p>MST/Mã số HKD: {company.taxCode}</p>}
+                        <p>Địa chỉ: {company.address}</p>
+                        <p>Điện thoại: {company.phone}</p>
                     </div>
                 </div>
 
@@ -250,9 +258,12 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                             ? 'Quý khách vui lòng thanh toán số tiền còn lại vào tài khoản sau:'
                             : 'Thông tin tài khoản nhận thanh toán của Quý đối tác:'}
                     </p>
-                    <p>- Ngân hàng: {data.bankInfo?.bankName || '...'}</p>
-                    <p>- Số tài khoản: {data.bankInfo?.accountNumber || '...'}</p>
-                    <p>- Chủ tài khoản: {data.bankInfo?.accountHolder || '...'}</p>
+                    <p>- Ngân hàng: {data.bankInfo?.bankName || company.bankInfo?.bankName || '...'}{(data.bankInfo?.branch || company.bankInfo?.branch) ? ` - ${data.bankInfo?.branch || company.bankInfo?.branch}` : ''}</p>
+                    <p>- Số tài khoản: {data.bankInfo?.accountNumber || company.bankInfo?.accountNumber || '...'}</p>
+                    <p>- Chủ tài khoản: {data.bankInfo?.accountHolder || company.bankInfo?.accountHolder || '...'}</p>
+                    {(data.bankInfo?.swiftCode || company.bankInfo?.swiftCode) && (
+                        <p>- SWIFT Code: {data.bankInfo?.swiftCode || company.bankInfo?.swiftCode}</p>
+                    )}
                     <p>- Nội dung: Thanh toan cong no {data.partner.name}</p>
                 </div>
 
@@ -285,9 +296,10 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
             {/* Header */}
             <div className="flex justify-between mb-6">
                 <div>
-                    <h3 className="font-bold text-base uppercase">CÔNG TY CP THỰC PHẨM ECO ORGANIC NHA TRANG</h3>
-                    <p>Địa chỉ: Thôn Cát Lợi, Xã Vĩnh Lương, TP. Nha Trang, Khánh Hòa</p>
-                    <p>Điện thoại: 0906473768</p>
+                    <h3 className="font-bold text-base uppercase">{company.name}</h3>
+                    {company.taxCode && <p>MST/Mã số HKD: {company.taxCode}</p>}
+                    <p>Địa chỉ: {company.address}</p>
+                    <p>Điện thoại: {company.phone}</p>
                 </div>
                 <div className="text-right">
                     <p className="font-bold">Mẫu số: ...</p>
@@ -413,10 +425,10 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                 <div className="mb-6 pl-4 border-l-4 border-gray-300">
                     <p className="font-bold mb-1">Quý khách có thể thanh toán theo thông tin tài khoản như sau:</p>
                     <div className="flex gap-16 mb-1">
-                        <p><span className="italic">Ngân hàng:</span> Techcombank CN Nha Trang</p>
-                        <p><span className="italic">STK:</span> 19036334624019</p>
+                        <p><span className="italic">Ngân hàng:</span> {data.bankInfo?.bankName || company.bankInfo?.bankName || '...'}</p>
+                        <p><span className="italic">STK:</span> {data.bankInfo?.accountNumber || company.bankInfo?.accountNumber || '...'}</p>
                     </div>
-                    <p><span className="italic">Tên TK:</span> Công Ty Cổ Phần Thực Phẩm Eco Organic Nha Trang</p>
+                    <p><span className="italic">Tên TK:</span> {data.bankInfo?.accountHolder || company.bankInfo?.accountHolder || company.name}</p>
                 </div>
             )}
 
