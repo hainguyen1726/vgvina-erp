@@ -266,8 +266,9 @@ const IncomeExpense: React.FC = () => {
   useEffect(() => {
     accountService.getAccounts()
       .then(data => {
-        // Filter out TK KN and TK Nợ NCC
-        const cashAccounts = data.filter(acc => acc.name !== 'TK KN' && acc.name !== 'TK Nợ NCC');
+        // Filter out TK KN and TK Nợ NCC only for VGVINA
+        const isHkdSite = typeof window !== 'undefined' && (window.location.hostname === 'hkd.vgvina.com' || window.location.hostname.includes('hkd'));
+        const cashAccounts = isHkdSite ? data : data.filter(acc => acc.name !== 'TK KN' && acc.name !== 'TK Nợ NCC');
         setAccounts(cashAccounts);
       })
       .catch(err => console.error("Error loading accounts:", err));
@@ -366,7 +367,8 @@ const IncomeExpense: React.FC = () => {
         fromDate,
         toDate
       );
-      const filteredData = data.filter(t => t.account_name !== 'TK KN' && t.account_name !== 'TK Nợ NCC');
+      const isHkdSite = typeof window !== 'undefined' && (window.location.hostname === 'hkd.vgvina.com' || window.location.hostname.includes('hkd'));
+      const filteredData = isHkdSite ? data : data.filter(t => t.account_name !== 'TK KN' && t.account_name !== 'TK Nợ NCC');
       setTransactions(filteredData);
     } catch (error) {
       console.error("Failed to fetch transactions", error);

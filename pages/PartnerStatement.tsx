@@ -118,8 +118,9 @@ const PartnerStatement: React.FC = () => {
             // Load accounts
             accountService.getAccounts()
                 .then(data => {
-                    // Filter out TK KN & TK Nợ NCC
-                    const cashAccounts = data.filter(acc => acc.name !== 'TK KN' && acc.name !== 'TK Nợ NCC');
+                    const isHkdSite = typeof window !== 'undefined' && (window.location.hostname === 'hkd.vgvina.com' || window.location.hostname.includes('hkd'));
+                    const filteredAccounts = data.filter(acc => acc.name !== 'TK KN' && acc.name !== 'TK Nợ NCC');
+                    const cashAccounts = (filteredAccounts.length > 0 || !isHkdSite) ? filteredAccounts : data;
                     setAccounts(cashAccounts);
                     if (cashAccounts.length > 0) setSelectedAccountId(cashAccounts[0].id);
                 })
