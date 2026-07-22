@@ -707,8 +707,10 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
             if (voucherType === 'delivery-note' || voucherType === 'purchase-order') {
                 const isSales = voucherType === 'delivery-note';
 
-                if (!partnerId || items.length === 0) {
-                    showNotification("Vui lòng chọn đối tác và thêm ít nhất 1 sản phẩm.", "warning");
+                const validItems = items.filter(item => item.product && item.product.id && Number(item.quantity) > 0);
+
+                if (!partnerId || validItems.length === 0) {
+                    showNotification("Vui lòng chọn đối tác và chọn ít nhất 1 sản phẩm với số lượng lớn hơn 0.", "warning");
                     return;
                 }
 
@@ -751,7 +753,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                     assignedUserIds: assignedUserIds,
                     orderDate: voucherDate,
                     status: status as OrderStatus,
-                    items: items.map(item => ({
+                    items: validItems.map(item => ({
                         productId: item.product?.id || '',
                         quantity: Number(item.quantity) || 0,
                         price: Number(item.price) || 0,
@@ -770,7 +772,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                 // re-saving the same order (e.g. just to fix the price) falsely triggers
                 // "không đủ tồn kho".
                 if (isSales && status !== OrderStatus.PENDING) {
-                    const productIdsToCheck = items.map(i => i.product?.id).filter(Boolean) as string[];
+                    const productIdsToCheck = validItems.map(i => i.product?.id).filter(Boolean) as string[];
                     // Tồn được kiểm tra theo facility của phiếu này (vgvina_inventory)
                     const orderFacility = (payload.facilityId as string) || undefined;
                     const liveStock = await productService.getLiveStock(productIdsToCheck, orderFacility);
@@ -786,7 +788,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                         }
                     }
 
-                    for (const item of items) {
+                    for (const item of validItems) {
                         if (!item.product) continue;
                         const availableQty = availableMap.get(item.product.id) ?? 0;
                         if (Number(item.quantity) > availableQty) {
@@ -817,8 +819,10 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                     onClose();
                 }
             } else if (voucherType === 'internal-transfer') {
-                if (!fromWarehouse || !toWarehouse || items.length === 0) {
-                    showNotification("Vui lòng chọn kho xuất, kho nhập và thêm ít nhất 1 sản phẩm.", "warning");
+                const validItems = items.filter(item => item.product && item.product.id && Number(item.quantity) > 0);
+
+                if (!fromWarehouse || !toWarehouse || validItems.length === 0) {
+                    showNotification("Vui lòng chọn kho xuất, kho nhập và chọn ít nhất 1 sản phẩm với số lượng lớn hơn 0.", "warning");
                     return;
                 }
 
@@ -835,7 +839,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                         }
                     }
 
-                    for (const item of items) {
+                    for (const item of validItems) {
                         if (item.product) {
                             const oldQty = oldQtyMap.get(item.product.id) ?? 0;
                             const availableQty = item.product.quantity + oldQty;
@@ -852,7 +856,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                     fromFacilityId: fromWarehouse,
                     toFacilityId: toWarehouse,
                     assignedUserIds: assignedUserIds,
-                    items: items.map(item => ({
+                    items: validItems.map(item => ({
                         productId: item.product?.id || '',
                         quantity: Number(item.quantity) || 0,
                         notes: item.notes
@@ -867,8 +871,9 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                     showNotification("Vui lòng chọn cơ sở.", "warning");
                     return;
                 }
-                if (items.length === 0) {
-                    showNotification("Vui lòng thêm ít nhất 1 sản phẩm.", "warning");
+                const validItems = items.filter(item => item.product && item.product.id && Number(item.quantity) > 0);
+                if (validItems.length === 0) {
+                    showNotification("Vui lòng chọn ít nhất 1 sản phẩm với số lượng lớn hơn 0.", "warning");
                     return;
                 }
                 await orderService.createScrappingVoucher({
@@ -877,7 +882,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                     facilityId: localFacilityId || selectedFacilityId || '',
                     assignedUserIds: assignedUserIds,
                     reason: scrappingReason,
-                    items: items.map(item => ({
+                    items: validItems.map(item => ({
                         productId: item.product?.id || '',
                         quantity: Number(item.quantity) || 0,
                         notes: item.notes
@@ -888,8 +893,9 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                 showNotification(status === OrderStatus.PENDING ? "Lưu tạm phiếu hủy hàng thành công!" : "Tạo phiếu hủy hàng thành công!", "success");
                 onClose();
             } else if (voucherType === 'return-voucher') {
-                if (!relatedOrderId || items.length === 0) {
-                    showNotification("Vui lòng chọn đơn hàng liên quan và thêm ít nhất 1 sản phẩm.", "warning");
+                const validItems = items.filter(item => item.product && item.product.id && Number(item.quantity) > 0);
+                if (!relatedOrderId || validItems.length === 0) {
+                    showNotification("Vui lòng chọn đơn hàng liên quan và chọn ít nhất 1 sản phẩm với số lượng lớn hơn 0.", "warning");
                     return;
                 }
                 await orderService.createReturnVoucher({
@@ -899,7 +905,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                     assignedUserIds: assignedUserIds,
                     reason: reason,
                     handlingMethod: handlingMethod,
-                    items: items.map(item => ({
+                    items: validItems.map(item => ({
                         productId: item.product?.id || '',
                         quantity: Number(item.quantity) || 0,
                         price: Number(item.price) || 0,

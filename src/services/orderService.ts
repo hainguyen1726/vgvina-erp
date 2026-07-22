@@ -24,6 +24,8 @@ export interface CreateOrderPayload {
     operatorName?: string;
 }
 
+export const toNullableUuid = (id?: string | null): string | null => (id && typeof id === 'string' && id.trim() !== '' ? id : null);
+
 export const orderService = {
     // NEW: Fetch recent prices for a specific partner and product
     async getRecentPrices(partnerId: string, productId: string, type: 'SALES' | 'PURCHASE', limit: number = 5) {
@@ -87,15 +89,15 @@ export const orderService = {
             .from('vgvina_sales_orders')
             .insert({
                 code: payload.code,
-                customer_id: payload.partnerId,
-                facility_id: payload.facilityId,
-                assigned_user_id: payload.assignedUserIds.length > 0 ? payload.assignedUserIds[0] : null,
+                customer_id: toNullableUuid(payload.partnerId),
+                facility_id: toNullableUuid(payload.facilityId),
+                assigned_user_id: payload.assignedUserIds.length > 0 ? toNullableUuid(payload.assignedUserIds[0]) : null,
                 order_date: payload.orderDate,
                 status: payload.status,
                 total_amount: payload.totalAmount,
                 amount_paid: payload.amountPaid,
                 notes: payload.notes,
-                account_id: payload.accountId // NEW: Save account_id
+                account_id: toNullableUuid(payload.accountId)
             })
             .select()
             .single();
@@ -105,8 +107,9 @@ export const orderService = {
         const orderId = orderData.id;
 
         // 2. Create Order Assignees
-        if (payload.assignedUserIds.length > 0) {
-            const assignees = payload.assignedUserIds.map(empId => ({
+        const validAssignedUserIds = payload.assignedUserIds.map(toNullableUuid).filter(Boolean) as string[];
+        if (validAssignedUserIds.length > 0) {
+            const assignees = validAssignedUserIds.map(empId => ({
                 order_id: orderId,
                 employee_id: empId
             }));
@@ -114,7 +117,8 @@ export const orderService = {
         }
 
         // 3. Create Order Items
-        const orderItems = payload.items.map(item => ({
+        const validItems = payload.items.filter(item => toNullableUuid(item.productId));
+        const orderItems = validItems.map(item => ({
             order_id: orderId,
             product_id: item.productId,
             quantity: item.quantity,
@@ -122,13 +126,15 @@ export const orderService = {
             notes: item.notes
         }));
 
-        const { error: itemsError } = await supabase
-            .from('vgvina_sales_order_items')
-            .insert(orderItems);
+        if (orderItems.length > 0) {
+            const { error: itemsError } = await supabase
+                .from('vgvina_sales_order_items')
+                .insert(orderItems);
 
-        if (itemsError) {
-            await supabase.from('vgvina_sales_orders').delete().eq('id', orderId);
-            throw itemsError;
+            if (itemsError) {
+                await supabase.from('vgvina_sales_orders').delete().eq('id', orderId);
+                throw itemsError;
+            }
         }
 
         // 4. Handle Financial & Debt Transactions if not PENDING
@@ -145,15 +151,15 @@ export const orderService = {
             .from('vgvina_purchase_orders')
             .insert({
                 code: payload.code,
-                supplier_id: payload.partnerId,
-                facility_id: payload.facilityId,
-                assigned_user_id: payload.assignedUserIds.length > 0 ? payload.assignedUserIds[0] : null,
+                supplier_id: toNullableUuid(payload.partnerId),
+                facility_id: toNullableUuid(payload.facilityId),
+                assigned_user_id: payload.assignedUserIds.length > 0 ? toNullableUuid(payload.assignedUserIds[0]) : null,
                 order_date: payload.orderDate,
                 status: payload.status,
                 total_amount: payload.totalAmount,
                 amount_paid: payload.amountPaid,
                 notes: payload.notes,
-                account_id: payload.accountId // NEW: Save account_id
+                account_id: toNullableUuid(payload.accountId)
             })
             .select()
             .single();
@@ -163,8 +169,9 @@ export const orderService = {
         const orderId = orderData.id;
 
         // 2. Create Order Assignees
-        if (payload.assignedUserIds.length > 0) {
-            const assignees = payload.assignedUserIds.map(empId => ({
+        const validAssignedUserIds = payload.assignedUserIds.map(toNullableUuid).filter(Boolean) as string[];
+        if (validAssignedUserIds.length > 0) {
+            const assignees = validAssignedUserIds.map(empId => ({
                 order_id: orderId,
                 employee_id: empId
             }));
@@ -172,7 +179,8 @@ export const orderService = {
         }
 
         // 3. Create Order Items
-        const orderItems = payload.items.map(item => ({
+        const validItems = payload.items.filter(item => toNullableUuid(item.productId));
+        const orderItems = validItems.map(item => ({
             order_id: orderId,
             product_id: item.productId,
             quantity: item.quantity,
@@ -180,13 +188,15 @@ export const orderService = {
             notes: item.notes
         }));
 
-        const { error: itemsError } = await supabase
-            .from('vgvina_purchase_order_items')
-            .insert(orderItems);
+        if (orderItems.length > 0) {
+            const { error: itemsError } = await supabase
+                .from('vgvina_purchase_order_items')
+                .insert(orderItems);
 
-        if (itemsError) {
-            await supabase.from('vgvina_purchase_orders').delete().eq('id', orderId);
-            throw itemsError;
+            if (itemsError) {
+                await supabase.from('vgvina_purchase_orders').delete().eq('id', orderId);
+                throw itemsError;
+            }
         }
 
         // 4. Handle Financial & Debt Transactions if not PENDING
@@ -230,20 +240,22 @@ export const orderService = {
                 amount: payload.amountPaid,
                 category_id: categoryId,
                 description: `${isSales ? 'Bán' : 'Mua'} hàng theo đơn ${payload.code}`,
-                partner_id: payload.partnerId,
-                facility_id: payload.facilityId,
-                account_id: payload.accountId,
-                employee_id: payload.assignedUserIds.length > 0 ? payload.assignedUserIds[0] : null,
-                related_order_id: orderId,
+                partner_id: toNullableUuid(payload.partnerId),
+                facility_id: toNullableUuid(payload.facilityId),
+                account_id: toNullableUuid(payload.accountId),
+                employee_id: payload.assignedUserIds.length > 0 ? toNullableUuid(payload.assignedUserIds[0]) : null,
+                related_order_id: toNullableUuid(orderId),
                 related_order_type: type
             }).select().single();
 
             if (txn && payload.assignedUserIds.length > 0) {
-                const txnAssignees = payload.assignedUserIds.map(empId => ({
+                const txnAssignees = payload.assignedUserIds.map(toNullableUuid).filter(Boolean).map(empId => ({
                     transaction_id: txn.id,
                     employee_id: empId
                 }));
-                await supabase.from('vgvina_transaction_assignees').insert(txnAssignees);
+                if (txnAssignees.length > 0) {
+                    await supabase.from('vgvina_transaction_assignees').insert(txnAssignees);
+                }
             }
 
             // --- Update Account Balance ---
@@ -274,24 +286,26 @@ export const orderService = {
         // B. Debt Transaction (if remaining > 0)
         if (remaining > 0) {
             const { data: debt } = await supabase.from('vgvina_debt_transactions').insert({
-                partner_id: payload.partnerId,
+                partner_id: toNullableUuid(payload.partnerId),
                 amount: remaining,
                 type: isSales ? 'RECEIVABLE' : 'PAYABLE',
                 due_date: null,
                 status: 'UNPAID',
-                facility_id: payload.facilityId,
-                assigned_user_id: payload.assignedUserIds.length > 0 ? payload.assignedUserIds[0] : null,
+                facility_id: toNullableUuid(payload.facilityId),
+                assigned_user_id: payload.assignedUserIds.length > 0 ? toNullableUuid(payload.assignedUserIds[0]) : null,
                 notes: `Công nợ từ đơn ${payload.code}`,
-                related_order_id: orderId,
+                related_order_id: toNullableUuid(orderId),
                 related_order_type: type
             }).select().single();
 
             if (debt && payload.assignedUserIds.length > 0) {
-                const debtAssignees = payload.assignedUserIds.map(empId => ({
+                const debtAssignees = payload.assignedUserIds.map(toNullableUuid).filter(Boolean).map(empId => ({
                     debt_id: debt.id,
                     employee_id: empId
                 }));
-                await supabase.from('vgvina_debt_assignees').insert(debtAssignees);
+                if (debtAssignees.length > 0) {
+                    await supabase.from('vgvina_debt_assignees').insert(debtAssignees);
+                }
             }
 
             // --- Create Financial Transaction for Debt Account and Update Balance ---
@@ -314,11 +328,11 @@ export const orderService = {
                     amount: remaining,
                     category_id: fallbackCatId,
                     description: `Phát sinh công nợ từ đơn ${payload.code}`,
-                    partner_id: payload.partnerId,
-                    facility_id: payload.facilityId,
+                    partner_id: toNullableUuid(payload.partnerId),
+                    facility_id: toNullableUuid(payload.facilityId),
                     account_id: defaultDebtAccountId,
-                    employee_id: payload.assignedUserIds.length > 0 ? payload.assignedUserIds[0] : null,
-                    related_order_id: orderId,
+                    employee_id: payload.assignedUserIds.length > 0 ? toNullableUuid(payload.assignedUserIds[0]) : null,
+                    related_order_id: toNullableUuid(orderId),
                     related_order_type: type
                 }).select().single();
 
