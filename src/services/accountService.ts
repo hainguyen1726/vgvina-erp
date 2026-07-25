@@ -78,5 +78,39 @@ export const accountService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    async recalculateAccountBalance(accountId: string): Promise<number> {
+        const { data: accountData, error: accError } = await supabase
+            .from('vgvina_accounts')
+            .select('initial_balance, balance')
+            .eq('id', accountId)
+            .single();
+
+        if (accError) throw accError;
+
+        const { data: txns, error: txnError } = await supabase
+            .from('vgvina_financial_transactions')
+            .select('amount, type')
+            .eq('account_id', accountId);
+
+        if (txnError) throw txnError;
+
+        const totalIn = (txns || []).reduce((sum: any, t: any) => t.type === 'INCOME' ? sum + Number(t.amount) : sum, 0);
+        const totalOut = (txns || []).reduce((sum: any, t: any) => t.type === 'EXPENSE' ? sum + Number(t.amount) : sum, 0);
+
+        const netChange = totalIn - totalOut;
+        const initialBalance = accountData?.initial_balance !== undefined && accountData?.initial_balance !== null
+            ? Number(accountData.initial_balance)
+            : Number(accountData?.balance || 0) - netChange;
+
+        const computedBalance = initialBalance + netChange;
+
+        await supabase
+            .from('vgvina_accounts')
+            .update({ balance: computedBalance })
+            .eq('id', accountId);
+
+        return computedBalance;
     }
 };

@@ -365,6 +365,18 @@ export const AdminAccountDetail: React.FC = () => {
         }
     };
 
+    const handleRecalculateBalance = async () => {
+        if (!accountId) return;
+        try {
+            const newBal = await accountService.recalculateAccountBalance(accountId);
+            setAccount(prev => prev ? { ...prev, balance: newBal } : null);
+            showNotification(`Đã đồng bộ lại số dư chuẩn: ${newBal.toLocaleString('vi-VN')} ₫`, 'success');
+        } catch (error) {
+            console.error("Failed to recalculate balance", error);
+            showNotification("Lỗi khi đồng bộ lại số dư.", 'error');
+        }
+    };
+
     const handleConfirmAccountDelete = async () => {
         if (!account) return;
         try {
@@ -404,6 +416,9 @@ export const AdminAccountDetail: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex items-center space-x-2 text-gray-500">
+                        <button onClick={handleRecalculateBalance} className="px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors flex items-center gap-1" title="Đồng bộ lại số dư theo giao dịch">
+                            🔄 Đồng bộ số dư
+                        </button>
                         <button onClick={() => setIsEditModalOpen(true)} className="p-1.5 rounded-full hover:bg-blue-100 hover:text-blue-600" title="Chỉnh sửa tài khoản"><EditIcon /></button>
                         <button onClick={() => setIsDeleteModalOpen(true)} className="p-1.5 rounded-full hover:bg-red-100 hover:text-red-600" title="Xóa tài khoản"><DeleteIcon /></button>
                     </div>
