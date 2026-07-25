@@ -350,18 +350,22 @@ export const AdminAccountDetail: React.FC = () => {
 
     const handleSaveAccountEdit = async (updatedAccount: AdminAccount) => {
         try {
-            const computedBalance = (updatedAccount.initial_balance ?? (updatedAccount.balance - netChange)) + netChange;
-            const finalAccount = {
+            const initBal = updatedAccount.initial_balance !== undefined && updatedAccount.initial_balance !== null && !isNaN(Number(updatedAccount.initial_balance))
+                ? Number(updatedAccount.initial_balance)
+                : 0;
+            const computedBalance = initBal + netChange;
+            const finalAccount: AdminAccount = {
                 ...updatedAccount,
+                initial_balance: initBal,
                 balance: computedBalance
             };
             await accountService.updateAccount(finalAccount.id, finalAccount);
             setAccount(finalAccount);
             setIsEditModalOpen(false);
-            showNotification(`Đã lưu tài khoản: ${finalAccount.name}`, 'success');
-        } catch (error) {
+            showNotification(`Đã cập nhật số dư đầu kỳ thành công! Số dư thực tế: ${computedBalance.toLocaleString('vi-VN')} ₫`, 'success');
+        } catch (error: any) {
             console.error("Failed to update account", error);
-            showNotification("Lỗi khi cập nhật tài khoản.", 'error');
+            showNotification("Lỗi khi cập nhật tài khoản: " + (error?.message || 'Vui lòng thử lại.'), 'error');
         }
     };
 

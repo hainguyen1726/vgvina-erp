@@ -4,10 +4,6 @@ import { AdminAccount } from '../../types';
 
 export const accountService = {
     async getAccounts(): Promise<AdminAccount[]> {
-        // Assuming we migrate vgvina_accounts table functionality. 
-        // For now, if table exists we fetch, otherwise we might return mock if table empty or not perfectly aligned yet.
-        // But based on schema, vgvina_accounts exists.
-
         const { data, error } = await supabase
             .from('vgvina_accounts')
             .select('*');
@@ -31,41 +27,70 @@ export const accountService = {
     },
 
     async createAccount(account: Omit<AdminAccount, 'id'>) {
-        const { data, error } = await supabase
+        const payload: any = {
+            name: account.name,
+            type: account.type === 'Tiền mặt' ? 'CASH' : (account.type === 'Thẻ tín dụng' ? 'CREDIT' : 'BANK'),
+            balance: account.balance,
+            details: account.notes,
+            bank_name: account.bank_name,
+            account_number: account.account_number,
+            account_holder: account.account_holder
+        };
+
+        let { data, error } = await supabase
             .from('vgvina_accounts')
             .insert({
-                name: account.name,
-                type: account.type === 'Tiền mặt' ? 'CASH' : (account.type === 'Thẻ tín dụng' ? 'CREDIT' : 'BANK'),
-                balance: account.balance,
-                initial_balance: account.initial_balance,
-                details: account.notes,
-                bank_name: account.bank_name,
-                account_number: account.account_number,
-                account_holder: account.account_holder
+                ...payload,
+                ...(account.initial_balance !== undefined ? { initial_balance: account.initial_balance } : {})
             })
             .select()
             .single();
+
+        if (error && error.code === 'PGRST204') {
+            const res = await supabase
+                .from('vgvina_accounts')
+                .insert(payload)
+                .select()
+                .single();
+            data = res.data;
+            error = res.error;
+        }
 
         if (error) throw error;
         return data;
     },
 
     async updateAccount(id: string, updates: Partial<AdminAccount>) {
-        const { data, error } = await supabase
+        const payload: any = {
+            name: updates.name,
+            type: updates.type ? (updates.type === 'Tiền mặt' ? 'CASH' : (updates.type === 'Thẻ tín dụng' ? 'CREDIT' : 'BANK')) : undefined,
+            balance: updates.balance,
+            details: updates.notes,
+            bank_name: updates.bank_name,
+            account_number: updates.account_number,
+            account_holder: updates.account_holder
+        };
+
+        let { data, error } = await supabase
             .from('vgvina_accounts')
             .update({
-                name: updates.name,
-                type: updates.type ? (updates.type === 'Tiền mặt' ? 'CASH' : (updates.type === 'Thẻ tín dụng' ? 'CREDIT' : 'BANK')) : undefined,
-                balance: updates.balance,
-                initial_balance: updates.initial_balance,
-                details: updates.notes,
-                bank_name: updates.bank_name,
-                account_number: updates.account_number,
-                account_holder: updates.account_holder
+                ...payload,
+                ...(updates.initial_balance !== undefined ? { initial_balance: updates.initial_balance } : {})
             })
             .eq('id', id)
             .select()
             .single();
+
+        if (error && error.code === 'PGRST204') {
+            const res = await supabase
+                .from('vgvina_accounts')
+                .update(payload)
+                .eq('id', id)
+                .select()
+                .single();
+            data = res.data;
+            error = res.error;
+        }
 
         if (error) throw error;
         return data;
@@ -81,13 +106,25 @@ export const accountService = {
     },
 
     async recalculateAccountBalance(accountId: string): Promise<number> {
-        const { data: accountData, error: accError } = await supabase
+        let accountData: any = null;
+        let { data: accData, error: accError } = await supabase
             .from('vgvina_accounts')
             .select('initial_balance, balance')
             .eq('id', accountId)
             .single();
 
-        if (accError) throw accError;
+        if (accError && accError.code === 'PGRST204') {
+            const res = await supabase
+                .from('vgvina_accounts')
+                .select('balance')
+                .eq('id', accountId)
+                .single();
+            accountData = res.data;
+        } else if (accError) {
+            throw accError;
+        } else {
+            accountData = accData;
+        }
 
         const { data: txns, error: txnError } = await supabase
             .from('vgvina_financial_transactions')
@@ -102,7 +139,7 @@ export const accountService = {
         const netChange = totalIn - totalOut;
         const initialBalance = accountData?.initial_balance !== undefined && accountData?.initial_balance !== null
             ? Number(accountData.initial_balance)
-            : Number(accountData?.balance || 0) - netChange;
+            : 0;
 
         const computedBalance = initialBalance + netChange;
 
