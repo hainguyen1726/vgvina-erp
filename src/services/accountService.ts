@@ -46,7 +46,7 @@ export const accountService = {
             .select()
             .single();
 
-        if (error && error.code === 'PGRST204') {
+        if (error && (error.code === 'PGRST204' || error.code === '42703' || error.message?.includes('initial_balance'))) {
             const res = await supabase
                 .from('vgvina_accounts')
                 .insert(payload)
@@ -81,7 +81,7 @@ export const accountService = {
             .select()
             .single();
 
-        if (error && error.code === 'PGRST204') {
+        if (error && (error.code === 'PGRST204' || error.code === '42703' || error.message?.includes('initial_balance'))) {
             const res = await supabase
                 .from('vgvina_accounts')
                 .update(payload)
@@ -113,7 +113,7 @@ export const accountService = {
             .eq('id', accountId)
             .single();
 
-        if (accError && accError.code === 'PGRST204') {
+        if (accError && (accError.code === 'PGRST204' || accError.code === '42703' || accError.message?.includes('initial_balance'))) {
             const res = await supabase
                 .from('vgvina_accounts')
                 .select('balance')
