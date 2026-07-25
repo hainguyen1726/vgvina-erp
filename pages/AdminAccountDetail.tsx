@@ -114,7 +114,7 @@ const EditAccountModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave:
         if (isOpen) window.addEventListener('keydown', handleEsc);
         return () => window.removeEventListener('keydown', handleEsc);
     }, [isOpen, onClose, showConfirmClose]);
-    const [formData, setFormData] = useState<Omit<AdminAccount, 'balance'> & { balance: number | string } | null>(null);
+    const [formData, setFormData] = useState<(Omit<AdminAccount, 'balance' | 'initial_balance'> & { balance: number | string; initial_balance?: number | string }) | null>(null);
 
     useEffect(() => {
         setFormData(accountData);
@@ -133,6 +133,7 @@ const EditAccountModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave:
             onSave({
                 ...formData,
                 balance: parseFloat(String(formData.balance)) || 0,
+                initial_balance: formData.initial_balance !== undefined && formData.initial_balance !== '' ? parseFloat(String(formData.initial_balance)) : undefined,
             });
         }
     };
@@ -163,7 +164,11 @@ const EditAccountModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave:
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Số dư</label>
+                            <label className="block text-sm font-medium text-gray-700">Số dư ban đầu (Đầu kỳ)</label>
+                            <input type="number" name="initial_balance" value={formData.initial_balance ?? ''} onChange={handleChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Số dư trước các giao dịch" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Số dư hiện tại</label>
                             <input type="number" name="balance" value={formData.balance} onChange={handleChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" />
                         </div>
                         <div>
@@ -263,15 +268,21 @@ export const AdminAccountDetail: React.FC = () => {
 
     // const account = useMemo(() => adminAccounts.find(acc => acc.id === accountId), [accountId]); // Replaced by state
 
-    const { totalIn, totalOut, transactions, currentBalance } = useMemo(() => {
-        if (!accountId || !account) return { totalIn: 0, totalOut: 0, transactions: [], currentBalance: 0 };
+    const { totalIn, totalOut, transactions, currentBalance, initialBalance, netChange } = useMemo(() => {
+        if (!accountId || !account) return { totalIn: 0, totalOut: 0, transactions: [], currentBalance: 0, initialBalance: 0, netChange: 0 };
 
         const allAccountTransactions = transactionsData.filter(t => t.accountId === accountId);
 
         const totalIn = allAccountTransactions.reduce((sum, t) => t.type === TransactionType.INCOME ? sum + t.amount : sum, 0);
         const totalOut = allAccountTransactions.reduce((sum, t) => t.type === TransactionType.EXPENSE ? sum + t.amount : sum, 0);
 
-        const currentBalance = account.balance; // Using the mock balance directly as per new requirement logic
+        const netChange = totalIn - totalOut;
+        const initialBalance = account.initial_balance !== undefined && account.initial_balance !== null
+            ? account.initial_balance
+            : account.balance - netChange;
+
+        // Số dư thực tế = Số dư đầu kỳ + Tổng vào - Tổng ra
+        const currentBalance = initialBalance + totalIn - totalOut;
 
         let filteredTransactions = [...allAccountTransactions];
 
@@ -289,7 +300,7 @@ export const AdminAccountDetail: React.FC = () => {
 
         filteredTransactions.sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
 
-        return { totalIn, totalOut, transactions: filteredTransactions, currentBalance };
+        return { totalIn, totalOut, transactions: filteredTransactions, currentBalance, initialBalance, netChange };
     }, [accountId, account, searchTerm, filterOption, transactionsData]);
 
     const totalPages = Math.ceil(transactions.length / itemsPerPage);
@@ -339,10 +350,15 @@ export const AdminAccountDetail: React.FC = () => {
 
     const handleSaveAccountEdit = async (updatedAccount: AdminAccount) => {
         try {
-            await accountService.updateAccount(updatedAccount.id, updatedAccount);
-            setAccount(updatedAccount);
+            const computedBalance = (updatedAccount.initial_balance ?? (updatedAccount.balance - netChange)) + netChange;
+            const finalAccount = {
+                ...updatedAccount,
+                balance: computedBalance
+            };
+            await accountService.updateAccount(finalAccount.id, finalAccount);
+            setAccount(finalAccount);
             setIsEditModalOpen(false);
-            showNotification(`Đã lưu tài khoản: ${updatedAccount.name}`, 'success');
+            showNotification(`Đã lưu tài khoản: ${finalAccount.name}`, 'success');
         } catch (error) {
             console.error("Failed to update account", error);
             showNotification("Lỗi khi cập nhật tài khoản.", 'error');
@@ -392,7 +408,7 @@ export const AdminAccountDetail: React.FC = () => {
                         <button onClick={() => setIsDeleteModalOpen(true)} className="p-1.5 rounded-full hover:bg-red-100 hover:text-red-600" title="Xóa tài khoản"><DeleteIcon /></button>
                     </div>
                 </div>
-                <p className="text-sm text-gray-500">Số dư hiện tại</p>
+                <p className="text-sm font-medium text-gray-500">Số dư thực tế hiện tại (Đầu kỳ + Vào - Ra)</p>
                 <p className={`text-2xl font-bold mt-1 ${currentBalance >= 0 ? 'text-[#0066cc]' : 'text-red-600'}`}>{currentBalance.toLocaleString('vi-VN')} đ</p>
             </div>
 
@@ -406,14 +422,37 @@ export const AdminAccountDetail: React.FC = () => {
                     </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-xs text-blue-800 font-medium">Số dư đầu kỳ</p>
+                        <p className="text-lg font-bold text-blue-900 mt-1">{initialBalance.toLocaleString('vi-VN')} ₫</p>
+                    </div>
                     <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                        <p className="text-xs text-green-800 font-medium">Tổng tiền vào</p>
+                        <p className="text-xs text-green-800 font-medium">Tổng tiền vào (+)</p>
                         <p className="text-lg font-bold text-green-900 mt-1">{totalIn.toLocaleString('vi-VN')} ₫</p>
                     </div>
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                        <p className="text-xs text-red-800 font-medium">Tổng tiền ra</p>
+                        <p className="text-xs text-red-800 font-medium">Tổng tiền ra (-)</p>
                         <p className="text-lg font-bold text-red-900 mt-1">{totalOut.toLocaleString('vi-VN')} ₫</p>
+                    </div>
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                        <p className="text-xs text-purple-800 font-medium">Biến động thuần (Vào - Ra)</p>
+                        <p className={`text-lg font-bold mt-1 ${netChange >= 0 ? 'text-purple-900' : 'text-red-700'}`}>
+                            {netChange >= 0 ? '+' : ''}{netChange.toLocaleString('vi-VN')} ₫
+                        </p>
+                    </div>
+                </div>
+
+                <div className="bg-blue-50/70 border border-blue-200/80 rounded-lg p-2.5 mb-4 text-xs text-blue-900 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-blue-800">💡 Công thức đối soát:</span>
+                        <span>Số dư hiện tại ({currentBalance.toLocaleString('vi-VN')} ₫)</span>
+                        <span>=</span>
+                        <span className="font-medium text-blue-900">Đầu kỳ ({initialBalance.toLocaleString('vi-VN')} ₫)</span>
+                        <span>+</span>
+                        <span className="font-medium text-green-700">Vào ({totalIn.toLocaleString('vi-VN')} ₫)</span>
+                        <span>-</span>
+                        <span className="font-medium text-red-700">Ra ({totalOut.toLocaleString('vi-VN')} ₫)</span>
                     </div>
                 </div>
 

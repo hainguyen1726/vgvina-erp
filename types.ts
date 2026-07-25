@@ -282,6 +282,7 @@ export interface AdminAccount {
   name: string;
   type: 'Tiền mặt' | 'Ngân hàng' | 'Thẻ tín dụng';
   balance: number;
+  initial_balance?: number;
   notes?: string;
   account_number?: string;
   bank_name?: string;

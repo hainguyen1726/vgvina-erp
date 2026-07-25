@@ -58,10 +58,12 @@ const AddAccountModal: React.FC<{ isOpen: boolean; onClose: () => void; onSave: 
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        const initialAmt = parseFloat(String(balance)) || 0;
         onSave({
             name,
             type,
-            balance: parseFloat(String(balance)) || 0,
+            balance: initialAmt,
+            initial_balance: initialAmt,
             notes,
             bank_name: bankName,
             account_number: accountNumber,
