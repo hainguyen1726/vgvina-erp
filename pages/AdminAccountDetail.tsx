@@ -279,7 +279,7 @@ export const AdminAccountDetail: React.FC = () => {
         const netChange = totalIn - totalOut;
         const initialBalance = account.initial_balance !== undefined && account.initial_balance !== null
             ? account.initial_balance
-            : 0;
+            : (account.balance - netChange);
 
         // Số dư thực tế = Số dư đầu kỳ + Tổng vào - Tổng ra
         const currentBalance = initialBalance + totalIn - totalOut;

@@ -369,37 +369,6 @@ export const transactionService = {
             }
             // --- End Log Settlement ---
 
-        // 4. Update Account Balance
-        if (payload.accountId) {
-            // First fetch current balance
-            const { data: account, error: accountError } = await supabase
-                .from('vgvina_accounts')
-                .select('balance')
-                .eq('id', payload.accountId)
-                .single();
-
-            if (!accountError && account) {
-                const currentBalance = Number(account.balance) || 0;
-                const transactionAmount = Number(payload.amount);
-
-                // Add if INCOME, subtract if EXPENSE
-                const newBalance = payload.type === TransactionType.INCOME
-                    ? currentBalance + transactionAmount
-                    : currentBalance - transactionAmount;
-
-                const { error: balanceUpdateError } = await supabase
-                    .from('vgvina_accounts')
-                    .update({ balance: newBalance })
-                    .eq('id', payload.accountId);
-
-                if (balanceUpdateError) {
-                    console.error("Error updating account balance:", balanceUpdateError);
-                }
-            } else {
-                console.error("Error fetching account for balance update:", accountError);
-            }
-        }
-
         return transaction;
     },
 

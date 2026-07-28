@@ -4,7 +4,7 @@ import { AdminAccount } from '../../types';
 
 export const accountService = {
     async getAccounts(): Promise<AdminAccount[]> {
-        const { data, error } = await supabase
+        const { data: accountsData, error } = await supabase
             .from('vgvina_accounts')
             .select('*');
 
@@ -13,17 +13,43 @@ export const accountService = {
             throw error;
         }
 
-        return data.map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            balance: item.balance,
-            initial_balance: item.initial_balance !== undefined && item.initial_balance !== null ? Number(item.initial_balance) : undefined,
-            type: item.type === 'CASH' ? 'Tiền mặt' : (item.type === 'CREDIT' ? 'Thẻ tín dụng' : 'Ngân hàng'),
-            notes: item.details,
-            bank_name: item.bank_name,
-            account_number: item.account_number,
-            account_holder: item.account_holder
-        }));
+        // Fetch transaction totals to ensure outside card balance ALWAYS matches inside detail ledger
+        const { data: txns } = await supabase
+            .from('vgvina_financial_transactions')
+            .select('account_id, amount, type');
+
+        const totalsByAccount: Record<string, { totalIn: number; totalOut: number }> = {};
+        (txns || []).forEach((t: any) => {
+            if (!t.account_id) return;
+            if (!totalsByAccount[t.account_id]) {
+                totalsByAccount[t.account_id] = { totalIn: 0, totalOut: 0 };
+            }
+            const amt = Number(t.amount) || 0;
+            if (t.type === 'INCOME') totalsByAccount[t.account_id].totalIn += amt;
+            else if (t.type === 'EXPENSE') totalsByAccount[t.account_id].totalOut += amt;
+        });
+
+        return accountsData.map((item: any) => {
+            const totals = totalsByAccount[item.id] || { totalIn: 0, totalOut: 0 };
+            const netChange = totals.totalIn - totals.totalOut;
+            const initBal = item.initial_balance !== undefined && item.initial_balance !== null
+                ? Number(item.initial_balance)
+                : (Number(item.balance || 0) - netChange);
+            
+            const computedBalance = initBal + netChange;
+
+            return {
+                id: item.id,
+                name: item.name,
+                balance: computedBalance,
+                initial_balance: initBal,
+                type: item.type === 'CASH' ? 'Tiền mặt' : (item.type === 'CREDIT' ? 'Thẻ tín dụng' : 'Ngân hàng'),
+                notes: item.details,
+                bank_name: item.bank_name,
+                account_number: item.account_number,
+                account_holder: item.account_holder
+            };
+        });
     },
 
     async createAccount(account: Omit<AdminAccount, 'id'>) {
@@ -139,7 +165,7 @@ export const accountService = {
         const netChange = totalIn - totalOut;
         const initialBalance = accountData?.initial_balance !== undefined && accountData?.initial_balance !== null
             ? Number(accountData.initial_balance)
-            : 0;
+            : (Number(accountData?.balance || 0) - netChange);
 
         const computedBalance = initialBalance + netChange;
 
@@ -149,5 +175,21 @@ export const accountService = {
             .eq('id', accountId);
 
         return computedBalance;
+    },
+
+    async recalculateAllAccountBalances(): Promise<void> {
+        const { data: accounts, error } = await supabase
+            .from('vgvina_accounts')
+            .select('id');
+
+        if (error) {
+            console.error('Error fetching accounts for recalculation:', error);
+            return;
+        }
+
+        for (const acc of accounts || []) {
+            await this.recalculateAccountBalance(acc.id);
+        }
     }
 };
+
