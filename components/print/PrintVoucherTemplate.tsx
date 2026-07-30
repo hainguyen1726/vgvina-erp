@@ -54,7 +54,7 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
     };
 
     const formatCurrency = (amount: number) => {
-        return (amount || 0).toLocaleString('vi-VN') + ' ₫';
+        return Math.round(amount || 0).toLocaleString('vi-VN') + ' ₫';
     };
 
 
@@ -133,7 +133,7 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                                     {typeof r.price === 'number' ? r.price.toLocaleString('vi-VN') : r.price}
                                 </td>
                                 <td className="border border-black p-1 text-right">
-                                    {typeof r.amount === 'number' ? r.amount.toLocaleString('vi-VN') : r.amount}
+                                    {typeof r.amount === 'number' ? Math.round(r.amount).toLocaleString('vi-VN') : r.amount}
                                 </td>
                                 <td className="border border-black p-1 text-right text-red-600">
                                     {typeof r.debit === 'number' ? r.debit.toLocaleString('vi-VN') : r.debit}

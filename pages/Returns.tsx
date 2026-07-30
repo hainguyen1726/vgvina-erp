@@ -439,7 +439,7 @@ const Returns: React.FC = () => {
                                             <td className="p-3 text-center">{(orderItem.product?.unit) || 'N/A'}</td>
                                             <td className="p-3 text-right font-medium tabular-nums">{qtyVal}</td>
                                             <td className="p-3 text-right tabular-nums">{priceVal.toLocaleString('vi-VN')} ₫</td>
-                                            <td className="p-3 text-right font-semibold text-gray-950 tabular-nums">{(qtyVal * priceVal).toLocaleString('vi-VN')} ₫</td>
+                                            <td className="p-3 text-right font-semibold text-gray-950 tabular-nums">{Math.round(qtyVal * priceVal).toLocaleString('vi-VN')} ₫</td>
                                           </tr>
                                         );
                                       })}
@@ -529,7 +529,7 @@ const Returns: React.FC = () => {
                             </div>
                             <div className="text-right">
                               <p className="font-bold text-gray-900">x{qtyVal}</p>
-                              <p className="font-semibold text-blue-600 mt-0.5">{(qtyVal * priceVal).toLocaleString('vi-VN')} ₫</p>
+                              <p className="font-semibold text-blue-600 mt-0.5">{Math.round(qtyVal * priceVal).toLocaleString('vi-VN')} ₫</p>
                             </div>
                           </div>
                         );

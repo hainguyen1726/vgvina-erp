@@ -329,7 +329,7 @@ export const partnerService = {
             .filter(r => r.status === 'COMPLETED' || r.status === 'APPROVED')
             .map(r => {
                 const itemsTotal = (r.items || []).reduce((sum: number, item: any) => 
-                    sum + (Number(item.quantity || 0) * (Number(item.price || 0))), 0);
+                    sum + Math.round(Number(item.quantity || 0) * Number(item.price || 0)), 0);
                 const netTotal = itemsTotal - Number(r.return_fee || 0) - Number(r.discount || 0);
 
                 const isCustomerReturn = salesOrderIds.includes(r.related_order_id);

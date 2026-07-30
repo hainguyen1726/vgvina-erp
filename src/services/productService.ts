@@ -454,7 +454,7 @@ export const productService = {
             if (!p) return;
             ensureItem(p);
             reportMap[p.id].totalQty += item.quantity;
-            reportMap[p.id].totalRevenue += (item.quantity * item.price);
+            reportMap[p.id].totalRevenue += Math.round(item.quantity * item.price);
             reportMap[p.id].totalCost += (item.quantity * (p.price || 0));
         });
 
@@ -475,7 +475,7 @@ export const productService = {
 
             ensureItem(p);
             reportMap[p.id].returnQty += item.quantity;
-            reportMap[p.id].returnVal += (item.quantity * item.price);
+            reportMap[p.id].returnVal += Math.round(item.quantity * item.price);
         });
 
         return Object.values(reportMap).map((item: any) => ({

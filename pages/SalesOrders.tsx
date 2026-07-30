@@ -206,7 +206,7 @@ export const SalesOrderDetailModal = ({ item, onClose, onEditClick, onDeleteClic
                         <td className="p-2">{orderItem.product.unit}</td>
                         <td className="p-2 text-right tabular-nums">{orderItem.quantity}</td>
                         <td className="p-2 text-right tabular-nums">{orderItem.price.toLocaleString('vi-VN')}</td>
-                        <td className="p-2 text-right font-medium tabular-nums">{(orderItem.quantity * orderItem.price).toLocaleString('vi-VN')}</td>
+                        <td className="p-2 text-right font-medium tabular-nums">{Math.round(orderItem.quantity * orderItem.price).toLocaleString('vi-VN')}</td>
                       </tr>
                     ))}
                   </tbody>

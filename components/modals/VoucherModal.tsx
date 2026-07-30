@@ -280,7 +280,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                 unit: item.product?.unit,
                 quantity: parseFloat(String(item.quantity)) || 0,
                 price: parseFloat(String(item.price)) || 0,
-                total: (parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0),
+                total: Math.round((parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0)),
             })),
             summary: {
                 total: totalAmount,
@@ -604,7 +604,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
     };
 
     const totalAmount = useMemo(() => {
-        return items.reduce((sum, item) => sum + ((parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0)), 0);
+        return items.reduce((sum, item) => sum + Math.round((parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0)), 0);
     }, [items]);
 
     // Tên tài khoản nợ mặc định theo loại phiếu
@@ -658,7 +658,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                 unit: item.product?.unit,
                 quantity: parseFloat(String(item.quantity)) || 0,
                 price: parseFloat(String(item.price)) || 0,
-                total: (parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0),
+                total: Math.round((parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0)),
                 notes: item.notes
             })),
             summary: {
@@ -1315,7 +1315,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="p-1 text-right font-medium pr-2">{((parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0)).toLocaleString('vi-VN')}</td>
+                                        <td className="p-1 text-right font-medium pr-2">{Math.round((parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0)).toLocaleString('vi-VN')}</td>
                                         <td className="p-1 text-center whitespace-nowrap">
                                             <button 
                                                 onClick={() => setNoteTargetItemId(noteTargetItemId === item.id ? null : item.id)} 
@@ -1447,7 +1447,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
 
             const getReturnNetTotal = (r: any) => {
                 const itemsTotal = (r.items || []).reduce((sum: number, item: any) => 
-                    sum + (Number(item.quantity || 0) * Number(item.price || 0)), 0);
+                    sum + Math.round(Number(item.quantity || 0) * Number(item.price || 0)), 0);
                 return itemsTotal - Number(r.return_fee || 0) - Number(r.discount || 0);
             };
 
@@ -1516,7 +1516,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                             const isShip = item.product?.name?.toLowerCase().includes('vận chuyển');
                             generatedRows.push({
                                 id: item.id + '_it', isHeader: false, date: '', code: item.product?.sku || '', description: item.product?.name || (item as any).product_name || '',
-                                unit: item.product?.unit || (isShip ? 'lần' : ''), quantity: item.quantity, price: item.price, amount: item.quantity * item.price,
+                                unit: item.product?.unit || (isShip ? 'lần' : ''), quantity: item.quantity, price: item.price, amount: Math.round(item.quantity * item.price),
                                 debit: '', credit: ''
                             });
                         });
@@ -1555,7 +1555,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                         r.items.forEach((item: any) => {
                             generatedRows.push({
                                 id: item.id + '_ret_it', isHeader: false, date: '', code: item.product?.sku || '', description: item.product?.name || item.product_name || '',
-                                unit: item.product?.unit || '', quantity: item.quantity, price: item.price, amount: item.quantity * item.price,
+                                unit: item.product?.unit || '', quantity: item.quantity, price: item.price, amount: Math.round(item.quantity * item.price),
                                 debit: '', credit: ''
                             });
                         });
@@ -1956,7 +1956,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                                                         className="w-full p-1.5 border border-gray-300 rounded-md" 
                                                     />
                                                 </td>
-                                                <td className="p-1 text-right font-medium">{((parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0)).toLocaleString('vi-VN')}</td>
+                                                <td className="p-1 text-right font-medium">{Math.round((parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0)).toLocaleString('vi-VN')}</td>
                                                 <td className="p-1 text-center">
                                                     <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:text-red-700 p-1">
                                                         <DeleteIcon className="w-4 h-4" />
@@ -2227,7 +2227,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                                     <td className="p-1">
                                         <input type="number" value={item.price} onChange={(e) => handleItemChange(item.id, 'price', e.target.value)} className="w-full p-1.5 border border-gray-300 rounded-md text-sm" placeholder="Giá vốn" />
                                     </td>
-                                    <td className="p-1 text-right font-medium pr-2">{((parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0)).toLocaleString('vi-VN')}</td>
+                                    <td className="p-1 text-right font-medium pr-2">{Math.round((parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0)).toLocaleString('vi-VN')}</td>
                                     <td className="p-1 text-center">
                                         <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:text-red-700 p-1">
                                             <DeleteIcon className="w-4 h-4" />

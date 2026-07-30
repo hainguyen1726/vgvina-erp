@@ -778,7 +778,7 @@ export const orderService = {
         // 4. If refund needed, create financial transaction
         // Only if it's not PENDING
         if (payload.status !== 'PENDING' && payload.refundAccountId && payload.items.length > 0) {
-            const totalRefund = payload.items.reduce((sum, item) => sum + (item.quantity * item.price), 0)
+            const totalRefund = payload.items.reduce((sum, item) => sum + Math.round(item.quantity * item.price), 0)
                 - (payload.returnFee || 0)
                 - (payload.discount || 0);
 
@@ -817,7 +817,7 @@ export const orderService = {
             }
 
             const debtType = isSales ? 'RECEIVABLE' : 'PAYABLE';
-            const totalRefund = payload.items.reduce((sum, item) => sum + (item.quantity * item.price), 0)
+            const totalRefund = payload.items.reduce((sum, item) => sum + Math.round(item.quantity * item.price), 0)
                 - (payload.returnFee || 0)
                 - (payload.discount || 0);
 
@@ -1042,7 +1042,7 @@ export const orderService = {
                         ...i,
                         product: i.product || { name: 'Unknown', sku: 'N/A', unit: '?' }
                     })),
-                    total_amount: (v.items || []).reduce((sum: number, item: any) => sum + (Number(item.quantity) * Number(item.price)), 0) - Number(v.return_fee || 0) - Number(v.discount || 0)
+                    total_amount: (v.items || []).reduce((sum: number, item: any) => sum + Math.round(Number(item.quantity) * Number(item.price)), 0) - Number(v.return_fee || 0) - Number(v.discount || 0)
                 };
             });
 

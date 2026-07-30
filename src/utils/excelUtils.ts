@@ -1021,7 +1021,7 @@ export const excelUtils = {
         const rows = data.map((item, index) => {
             const qty = Number(item.quantity) || 0;
             const price = Number(item.price) || 0;
-            const val = qty * price;
+            const val = Math.round(qty * price);
 
             totalQty += qty;
             totalVal += val;
@@ -1183,7 +1183,7 @@ export const excelUtils = {
                     const unit = item.product?.unit || '';
                     const qty = item.quantity || 0;
                     const price = item.price || 0;
-                    const lineTotal = qty * price;
+                    const lineTotal = Math.round(qty * price);
 
                     wsData.push([
                         orderCode,
@@ -1318,7 +1318,7 @@ export const excelUtils = {
                 orderItem.product?.unit || '',
                 qty,
                 price,
-                qty * price
+                Math.round(qty * price)
             ]);
         });
 
