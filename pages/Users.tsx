@@ -208,6 +208,8 @@ const Users: React.FC = () => {
   const [members, setMembers] = useState<User[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusTab, setStatusTab] = useState<'ACTIVE' | 'PENDING' | 'INACTIVE' | 'ALL'>('ACTIVE');
   const [selectedMember, setSelectedMember] = useState<User | null>(null);
   const [memberToDelete, setMemberToDelete] = useState<User | null>(null);
   const [memberToReject, setMemberToReject] = useState<User | null>(null);
@@ -285,10 +287,10 @@ const Users: React.FC = () => {
       }
     }
   };
+
   const openChangePasswordModal = (member: User) => {
     setMemberToChangePassword(member);
     setIsChangePasswordModalOpen(true);
-    // Close detail modal if open
     setSelectedMember(null);
   };
 
@@ -301,13 +303,24 @@ const Users: React.FC = () => {
     if (memberToDelete) {
       try {
         await userService.deleteUser(Number(memberToDelete.id));
-        showNotification(`Đã xóa thành viên: ${memberToDelete.full_name}`, 'success');
+        showNotification(`Đã ngắt quyền truy cập thành viên: ${memberToDelete.full_name}. Dữ liệu vẫn được lưu trên hệ thống.`, 'success');
         setMemberToDelete(null);
         fetchUsers(); // Refresh the list
       } catch (error: any) {
-        console.error('Failed to delete user:', error);
-        showNotification(error?.message || 'Lỗi khi xóa thành viên.', 'error');
+        console.error('Failed to deactivate user:', error);
+        showNotification(error?.message || 'Lỗi khi ngắt quyền truy cập thành viên.', 'error');
       }
+    }
+  };
+
+  const handleRestore = async (member: User) => {
+    try {
+      await userService.restoreUser(Number(member.id));
+      showNotification(`Đã khôi phục hoạt động cho thành viên: ${member.full_name}`, 'success');
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Failed to restore user:', error);
+      showNotification(error?.message || 'Không thể khôi phục thành viên.', 'error');
     }
   };
 
@@ -315,7 +328,6 @@ const Users: React.FC = () => {
     try {
       const { error } = await supabase
         .from('vgvina_users')
-        // Set status to Active and Role to user (so they can enter the app)
         .update({
           status: EmployeeStatus.DANG_LAM_VIEC,
           role: 'user'
@@ -339,7 +351,6 @@ const Users: React.FC = () => {
     if (!memberToReject) return;
 
     try {
-      // Option 1: Set to Inactive
       const { error } = await supabase
         .from('vgvina_users')
         .update({ status: EmployeeStatus.DA_NGHI_VIEC })
@@ -354,6 +365,27 @@ const Users: React.FC = () => {
     }
   };
 
+  // Filter members based on Tab and Search Term
+  const activeCount = members.filter(m => m.status === EmployeeStatus.DANG_LAM_VIEC || m.status === 'Active').length;
+  const pendingCount = members.filter(m => m.status === EmployeeStatus.CHO_PHE_DUYET || m.status === 'Pending').length;
+  const inactiveCount = members.filter(m => m.status === EmployeeStatus.DA_NGHI_VIEC || m.status === 'Inactive').length;
+
+  const filteredMembers = members.filter(member => {
+    // Search filter
+    const matchesSearch = !searchTerm || 
+      member.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.phone?.includes(searchTerm);
+
+    if (!matchesSearch) return false;
+
+    // Status Tab filter
+    if (statusTab === 'ACTIVE') return member.status === EmployeeStatus.DANG_LAM_VIEC || member.status === 'Active';
+    if (statusTab === 'PENDING') return member.status === EmployeeStatus.CHO_PHE_DUYET || member.status === 'Pending';
+    if (statusTab === 'INACTIVE') return member.status === EmployeeStatus.DA_NGHI_VIEC || member.status === 'Inactive';
+    return true; // ALL
+  });
+
   if (loading) {
     return <div className="p-6">Đang tải dữ liệu...</div>;
   }
@@ -363,112 +395,187 @@ const Users: React.FC = () => {
       <div className="bg-gray-100 min-h-full">
         <div className="bg-[#0066cc] text-white p-6 shadow-md">
           <h1 className="text-2xl font-bold">Quản lý thành viên</h1>
-          <p className="mt-1">Phê duyệt và quản lý vai trò của các thành viên</p>
+          <p className="mt-1">Phê duyệt, phân quyền và quản lý tài khoản nhân viên</p>
         </div>
         <div className="p-4 sm:p-6">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center text-gray-600">
-              <NguoiDungIcon />
-              <span className="ml-2 font-semibold">{members.length} thành viên</span>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+            {/* Status Tabs */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setStatusTab('ACTIVE')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
+                  statusTab === 'ACTIVE'
+                    ? 'bg-[#0066cc] text-white shadow-sm'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                }`}
+              >
+                Đang làm việc ({activeCount})
+              </button>
+              <button
+                onClick={() => setStatusTab('PENDING')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
+                  statusTab === 'PENDING'
+                    ? 'bg-amber-600 text-white shadow-sm'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                }`}
+              >
+                Chờ phê duyệt ({pendingCount})
+              </button>
+              <button
+                onClick={() => setStatusTab('INACTIVE')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
+                  statusTab === 'INACTIVE'
+                    ? 'bg-gray-700 text-white shadow-sm'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                }`}
+              >
+                Đã nghỉ việc / Khóa ({inactiveCount})
+              </button>
+              <button
+                onClick={() => setStatusTab('ALL')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
+                  statusTab === 'ALL'
+                    ? 'bg-gray-800 text-white shadow-sm'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                }`}
+              >
+                Tất cả ({members.length})
+              </button>
             </div>
-            <div className="flex gap-4">
-              <div className="relative w-full max-w-xs">
+
+            <div className="flex gap-3 w-full md:w-auto">
+              <div className="relative w-full md:w-64">
                 <input
                   type="text"
-                  placeholder="Tìm kiếm mọi thứ..."
+                  placeholder="Tìm kiếm thành viên..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-[#0066cc]"
                 />
                 <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                   <SearchIcon />
                 </div>
               </div>
-              <button onClick={() => setIsAddModalOpen(true)} className="flex items-center px-4 py-2 bg-[#0066cc] text-white text-sm font-medium rounded-full hover:bg-[#0052a3]">
+              <button onClick={() => setIsAddModalOpen(true)} className="whitespace-nowrap flex items-center px-4 py-2 bg-[#0066cc] text-white text-sm font-medium rounded-full hover:bg-[#0052a3]">
                 + Thêm thành viên
               </button>
             </div>
           </div>
 
           <div className="space-y-4">
-            {members.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Chưa có thành viên nào.</div>
+            {filteredMembers.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-lg border border-dashed border-gray-300 text-gray-500">
+                Không tìm thấy thành viên nào phù hợp.
+              </div>
             ) : (
-              members.map(member => (
-                <div
-                  key={member.id}
-                  onClick={() => setSelectedMember(member)}
-                  className="bg-white p-4 rounded-lg shadow-sm transition hover:shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4 cursor-pointer"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="relative">
-                      <img
-                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name)}&background=random`}
-                        alt={member.full_name}
-                        className="w-12 h-12 rounded-full"
-                      />
-                      {member.status === EmployeeStatus.DANG_LAM_VIEC && (
-                        <span className="absolute bottom-0 right-0 block h-4 w-4 rounded-full bg-green-500 border-2 border-white">
-                          <svg className="h-full w-full text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-bold text-gray-900">{member.full_name}</p>
-                      <p className="text-sm text-gray-500">{member.email}</p>
-                      <div className="mt-2 w-48" onClick={(e) => e.stopPropagation()}>
-                        {member.status === EmployeeStatus.CHO_PHE_DUYET ? (
-                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Chờ phê duyệt</span>
-                        ) : (
-                          <RoleDropdown userId={member.id} initialRoleId={member.role_id} initialRoleName={member.role} onUpdate={fetchUsers} />
+              filteredMembers.map(member => {
+                const isInactive = member.status === EmployeeStatus.DA_NGHI_VIEC || member.status === 'Inactive';
+                const isPending = member.status === EmployeeStatus.CHO_PHE_DUYET || member.status === 'Pending';
+
+                return (
+                  <div
+                    key={member.id}
+                    onClick={() => setSelectedMember(member)}
+                    className={`p-4 rounded-lg shadow-sm transition flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4 cursor-pointer ${
+                      isInactive ? 'bg-gray-50 opacity-85 border border-gray-200' : 'bg-white hover:shadow-md'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className="relative">
+                        <img
+                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.full_name)}&background=random`}
+                          alt={member.full_name}
+                          className="w-12 h-12 rounded-full"
+                        />
+                        {!isInactive && !isPending && (
+                          <span className="absolute bottom-0 right-0 block h-4 w-4 rounded-full bg-green-500 border-2 border-white">
+                            <svg className="h-full w-full text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
+                          </span>
+                        )}
+                        {isInactive && (
+                          <span className="absolute bottom-0 right-0 block h-4 w-4 rounded-full bg-gray-500 border-2 border-white"></span>
                         )}
                       </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center w-full sm:w-auto space-y-2 sm:space-y-0 sm:space-x-4">
-                    <div className="w-full sm:w-48" onClick={(e) => e.stopPropagation()}>
-                      {member.status === EmployeeStatus.CHO_PHE_DUYET ? (
-                        <div className="text-sm text-gray-500 text-right">Chưa gán chi nhánh</div>
-                      ) : !(member as any).is_admin ? (
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1 sm:hidden">Chi nhánh</label>
-                          <FacilityDropdown
-                            userId={member.id}
-                            initialFacility={member.facility_name}
-                            facilities={facilities}
-                            onUpdate={fetchUsers}
-                          />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-gray-900">{member.full_name}</p>
+                          {isInactive && (
+                            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-700">Đã nghỉ việc</span>
+                          )}
                         </div>
-                      ) : (
-                        <p className="text-gray-400 italic text-right">Tất cả chi nhánh</p>
-                      )}
-                    </div>
-
-                    {member.status === EmployeeStatus.CHO_PHE_DUYET && (
-                      <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-2" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleApprove(member);
-                            }}
-                            className="flex-1 w-full text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition duration-300"
-                          >
-                            Phê duyệt
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleReject(member);
-                            }}
-                            className="flex-1 w-full text-sm bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition duration-300"
-                          >
-                            Từ chối
-                          </button>
+                        <p className="text-sm text-gray-500">{member.email || 'Chưa có email'}</p>
+                        <div className="mt-2 w-48" onClick={(e) => e.stopPropagation()}>
+                          {isPending ? (
+                            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Chờ phê duyệt</span>
+                          ) : isInactive ? (
+                            <span className="text-xs text-gray-500 italic">Đã khóa tài khoản</span>
+                          ) : (
+                            <RoleDropdown userId={member.id} initialRoleId={member.role_id} initialRoleName={member.role} onUpdate={fetchUsers} />
+                          )}
                         </div>
                       </div>
-                    )}
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center w-full sm:w-auto space-y-2 sm:space-y-0 sm:space-x-4">
+                      <div className="w-full sm:w-48" onClick={(e) => e.stopPropagation()}>
+                        {isPending ? (
+                          <div className="text-sm text-gray-500 text-right">Chưa gán chi nhánh</div>
+                        ) : !(member as any).is_admin ? (
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1 sm:hidden">Chi nhánh</label>
+                            <FacilityDropdown
+                              userId={member.id}
+                              initialFacility={member.facility_name}
+                              facilities={facilities}
+                              onUpdate={fetchUsers}
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-gray-400 italic text-right">Tất cả chi nhánh</p>
+                        )}
+                      </div>
+
+                      {isPending && (
+                        <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleApprove(member);
+                              }}
+                              className="flex-1 w-full text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition duration-300"
+                            >
+                              Phê duyệt
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReject(member);
+                              }}
+                              className="flex-1 w-full text-sm bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition duration-300"
+                            >
+                              Từ chối
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {isInactive && (
+                        <div className="w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRestore(member);
+                            }}
+                            className="w-full text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-1.5 px-3 rounded-md transition duration-200"
+                          >
+                            Khôi phục
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -484,9 +591,9 @@ const Users: React.FC = () => {
         isOpen={!!memberToDelete}
         onClose={() => setMemberToDelete(null)}
         onConfirm={handleConfirmDelete}
-        title="Xác nhận Xóa Thành viên"
-        message={`Bạn có chắc chắn muốn xóa thành viên "${memberToDelete?.full_name}" không? Hành động này không thể hoàn tác.`}
-        confirmText="Xác nhận Xóa"
+        title="Xác nhận Ngắt quyền truy cập thành viên"
+        message={`Bạn có chắc chắn muốn ngắt quyền truy cập của thành viên "${memberToDelete?.full_name}" không? Tài khoản sẽ được chuyển sang trạng thái Đã nghỉ việc (Inactive) và ngắt đăng nhập, nhưng mọi thông tin lịch sử vẫn được lưu trữ bảo toàn trong Database.`}
+        confirmText="Ngắt quyền truy cập"
       />
       <ConfirmationModal
         isOpen={!!memberToReject}

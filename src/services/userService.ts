@@ -427,28 +427,28 @@ export const userService = {
     },
 
     async deleteUser(userId: number): Promise<void> {
-        const isHkd = typeof window !== 'undefined' && window.location.hostname === 'hkd.vgvina.com';
-
-        if (isHkd) {
-            const { error } = await supabase.from('vgvina_users').delete().eq('id', userId);
-            if (error) throw error;
-            return;
-        }
-
-        const { error } = await supabase.rpc('admin_delete_user', {
-            target_user_id: userId
-        });
+        // Soft delete: Giữ nguyên dữ liệu trong DB, chuyển trạng thái thành Inactive (Đã nghỉ việc) để ngắt truy cập
+        const { error } = await supabase
+            .from('vgvina_users')
+            .update({ status: EmployeeStatus.DA_NGHI_VIEC })
+            .eq('id', userId);
 
         if (error) {
-            console.error('RPC admin_delete_user failed, attempting direct delete fallback:', error);
-            // Fallback for orphaned users in vgvina_users that lack an auth record
-            // (e.g., if admin_create_user failed historically, they get stuck)
-            const { error: directError } = await supabase.from('vgvina_users').delete().eq('id', userId);
-            
-            if (directError) {
-                console.error('Direct delete fallback failed:', directError);
-                throw new Error(`Xoá thất bại bằng RPC: ${error.message} \n Xoá trực tiếp cũng thất bại: ${directError.message}`);
-            }
+            console.error('Error deactivating user:', error);
+            throw error;
+        }
+    },
+
+    async restoreUser(userId: number): Promise<void> {
+        // Khôi phục trạng thái thành Đang làm việc (Active)
+        const { error } = await supabase
+            .from('vgvina_users')
+            .update({ status: EmployeeStatus.DANG_LAM_VIEC })
+            .eq('id', userId);
+
+        if (error) {
+            console.error('Error restoring user:', error);
+            throw error;
         }
     }
 };

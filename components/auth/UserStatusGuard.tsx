@@ -21,8 +21,8 @@ const UserStatusGuard: React.FC<UserStatusGuardProps> = ({ children }) => {
             const status = (currentUser as any).status || ''; // Casting if status missing in interface
             const role = currentUser.role || '';
 
-            // Condition: Status is Pending OR Role is Guest
-            if (status === 'Pending' || status === 'Chờ phê duyệt' || role === 'Guest') {
+            // Condition: Status is Pending / Inactive OR Role is Guest
+            if (status === 'Pending' || status === 'Chờ phê duyệt' || status === 'Inactive' || status === 'Đã nghỉ việc' || role === 'Guest') {
                 setIsPending(true);
             } else {
                 setIsPending(false);
