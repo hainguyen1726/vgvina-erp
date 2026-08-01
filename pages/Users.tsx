@@ -304,9 +304,9 @@ const Users: React.FC = () => {
         showNotification(`Đã xóa thành viên: ${memberToDelete.full_name}`, 'success');
         setMemberToDelete(null);
         fetchUsers(); // Refresh the list
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to delete user:', error);
-        showNotification('Lỗi khi xóa thành viên. Có thể bạn chưa chạy SQL v7.', 'error');
+        showNotification(error?.message || 'Lỗi khi xóa thành viên.', 'error');
       }
     }
   };

@@ -163,6 +163,7 @@ export interface Product {
 
 export interface Debt {
   id: string;
+  code?: string;
   partner_id: string;
   partner_name: string;
   amount: number;
@@ -182,6 +183,7 @@ export interface User {
   status: EmployeeStatus;
   role: string;
   email?: string;
+  username?: string;
   role_id?: string;
   facility_id?: string;
   is_admin?: boolean;
