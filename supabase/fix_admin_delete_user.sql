@@ -1,8 +1,11 @@
 -- =============================================================================
--- FIX: Lỗi khi xóa thành viên (Tạo RPC function public.admin_delete_user)
+-- FIX: Lỗi khi xóa thành viên (RPC function public.admin_delete_user)
 -- =============================================================================
--- Hàm RPC admin_delete_user cho phép Admin xóa thành viên hoàn toàn khỏi hệ thống
--- (Bao gồm cả auth.users, vgvina_users và tự động gỡ liên kết dữ liệu cũ tránh lỗi Foreign Key).
+-- Gỡ bỏ sạch sẽ tất cả ràng buộc Khóa ngoại (Foreign Key) trên các bảng 
+-- (bao gồm vgvina_audit_logs, vgvina_sales_orders, vgvina_purchase_orders,
+-- vgvina_financial_transactions, vgvina_debt_transactions, vgvina_partners,
+-- vgvina_partner_transfers, vgvina_internal_transfers, vgvina_scrapping_vouchers...)
+-- trước khi thực hiện xóa thành viên trong vgvina_users và auth.users.
 -- =============================================================================
 
 DROP FUNCTION IF EXISTS public.admin_delete_user(bigint);
@@ -50,37 +53,80 @@ BEGIN
     RAISE EXCEPTION 'Thành viên ID % không tồn tại.', target_user_id;
   END IF;
 
-  -- 3. Gỡ liên kết / Nullify các tham chiếu Foreign Key để tránh vi phạm rào cản dữ liệu
+  -- 3. Gỡ bỏ Foreign Key references trong public schema
+  UPDATE public.vgvina_audit_logs SET user_id = NULL WHERE user_id = target_user_id;
   UPDATE public.vgvina_sales_orders SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
   UPDATE public.vgvina_purchase_orders SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
+  UPDATE public.vgvina_internal_transfers SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
+  UPDATE public.vgvina_scrapping_vouchers SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
+  UPDATE public.vgvina_financial_transactions SET employee_id = NULL WHERE employee_id = target_user_id;
+  UPDATE public.vgvina_debt_transactions SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
+  UPDATE public.vgvina_partners SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
   
-  -- Kiểm tra bảng giao dịch tài chính
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vgvina_financial_transactions' AND column_name = 'employee_id') THEN
-    UPDATE public.vgvina_financial_transactions SET employee_id = NULL WHERE employee_id = target_user_id;
+  -- Partner transfers
+  UPDATE public.vgvina_partner_transfers SET from_user_id = NULL WHERE from_user_id = target_user_id;
+  UPDATE public.vgvina_partner_transfers SET to_user_id = NULL WHERE to_user_id = target_user_id;
+  UPDATE public.vgvina_partner_transfers SET created_by = NULL WHERE created_by = target_user_id;
+
+  -- Delete junction table records
+  DELETE FROM public.vgvina_user_facilities WHERE user_id = target_user_id;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'vgvina_partner_users') THEN
+    DELETE FROM public.vgvina_partner_users WHERE user_id = target_user_id;
   END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vgvina_financial_transactions' AND column_name = 'assigned_user_id') THEN
-    UPDATE public.vgvina_financial_transactions SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'vgvina_transaction_assignees') THEN
+    DELETE FROM public.vgvina_transaction_assignees WHERE employee_id = target_user_id;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'vgvina_sales_order_assignees') THEN
+    DELETE FROM public.vgvina_sales_order_assignees WHERE employee_id = target_user_id;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'vgvina_purchase_order_assignees') THEN
+    DELETE FROM public.vgvina_purchase_order_assignees WHERE employee_id = target_user_id;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'vgvina_internal_transfer_assignees') THEN
+    DELETE FROM public.vgvina_internal_transfer_assignees WHERE employee_id = target_user_id;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'vgvina_scrapping_assignees') THEN
+    DELETE FROM public.vgvina_scrapping_assignees WHERE employee_id = target_user_id;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'vgvina_return_assignees') THEN
+    DELETE FROM public.vgvina_return_assignees WHERE employee_id = target_user_id;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'vgvina_debt_assignees') THEN
+    DELETE FROM public.vgvina_debt_assignees WHERE employee_id = target_user_id;
   END IF;
 
-  -- Kiểm tra các bảng giao dịch công nợ, đối tác, kho
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vgvina_debt_transactions' AND column_name = 'assigned_user_id') THEN
-    UPDATE public.vgvina_debt_transactions SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'vgvina_partners' AND column_name = 'assigned_user_id') THEN
-    UPDATE public.vgvina_partners SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
+  -- 4. Gỡ bỏ Foreign Key references trong hkd schema (nếu tồn tại)
+  IF EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'hkd') THEN
+    UPDATE hkd.vgvina_audit_logs SET user_id = NULL WHERE user_id = target_user_id;
+    UPDATE hkd.vgvina_sales_orders SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
+    UPDATE hkd.vgvina_purchase_orders SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
+    UPDATE hkd.vgvina_internal_transfers SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
+    UPDATE hkd.vgvina_scrapping_vouchers SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
+    UPDATE hkd.vgvina_financial_transactions SET employee_id = NULL WHERE employee_id = target_user_id;
+    UPDATE hkd.vgvina_debt_transactions SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
+    UPDATE hkd.vgvina_partners SET assigned_user_id = NULL WHERE assigned_user_id = target_user_id;
+
+    UPDATE hkd.vgvina_partner_transfers SET from_user_id = NULL WHERE from_user_id = target_user_id;
+    UPDATE hkd.vgvina_partner_transfers SET to_user_id = NULL WHERE to_user_id = target_user_id;
+    UPDATE hkd.vgvina_partner_transfers SET created_by = NULL WHERE created_by = target_user_id;
+
+    DELETE FROM hkd.vgvina_user_facilities WHERE user_id = target_user_id;
+    DELETE FROM hkd.vgvina_partner_users WHERE user_id = target_user_id;
+    DELETE FROM hkd.vgvina_transaction_assignees WHERE employee_id = target_user_id;
+    DELETE FROM hkd.vgvina_sales_order_assignees WHERE employee_id = target_user_id;
+    DELETE FROM hkd.vgvina_purchase_order_assignees WHERE employee_id = target_user_id;
+    DELETE FROM hkd.vgvina_internal_transfer_assignees WHERE employee_id = target_user_id;
+    DELETE FROM hkd.vgvina_scrapping_assignees WHERE employee_id = target_user_id;
+    DELETE FROM hkd.vgvina_return_assignees WHERE employee_id = target_user_id;
+    DELETE FROM hkd.vgvina_debt_assignees WHERE employee_id = target_user_id;
   END IF;
 
-  -- Xóa dữ liệu phân quyền chi nhánh (vgvina_user_facilities)
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'vgvina_user_facilities') THEN
-    DELETE FROM public.vgvina_user_facilities WHERE user_id = target_user_id;
-  END IF;
-
-  -- 4. Xóa tài khoản đăng nhập trong auth.users (nếu có email)
+  -- 5. Xóa tài khoản đăng nhập trong auth.users (nếu có email)
   IF target_email IS NOT NULL AND target_email <> '' THEN
     DELETE FROM auth.users WHERE email = target_email;
   END IF;
 
-  -- 5. Xóa nhân viên trong vgvina_users
+  -- 6. Xóa nhân viên trong vgvina_users
   DELETE FROM public.vgvina_users WHERE id = target_user_id;
 END;
 $function$;
