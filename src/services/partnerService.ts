@@ -38,17 +38,66 @@ export const partnerService = {
         // 1. Sales
         const { data: salesData } = await supabase
             .from('vgvina_sales_orders')
-            .select('customer_id, total_amount, facility_id');
+            .select('id, customer_id, total_amount, facility_id');
 
         // 2. Purchases
         const { data: purchaseData } = await supabase
             .from('vgvina_purchase_orders')
-            .select('supplier_id, total_amount, facility_id');
+            .select('id, supplier_id, total_amount, facility_id');
 
         // 3. Transactions
         const { data: txnData } = await supabase
             .from('vgvina_financial_transactions')
             .select('partner_id, amount, type, facility_id, account:account_id ( name )');
+
+        // 4. Return Vouchers (Phiếu trả hàng - giảm nợ)
+        const { data: returnData } = await supabase
+            .from('vgvina_return_vouchers')
+            .select(`
+                id, return_fee, discount, status, related_order_id,
+                items:vgvina_return_voucher_items ( quantity, price )
+            `);
+
+        // Map sales & purchase orders to find partner_id and facility_id of return vouchers
+        const salesOrderMap = new Map<string, { partner_id: string; facility_id: string }>();
+        (salesData || []).forEach(s => {
+            if (s.id && s.customer_id) {
+                salesOrderMap.set(s.id, { partner_id: s.customer_id, facility_id: s.facility_id });
+            }
+        });
+
+        const purchaseOrderMap = new Map<string, { partner_id: string; facility_id: string }>();
+        (purchaseData || []).forEach(p => {
+            if (p.id && p.supplier_id) {
+                purchaseOrderMap.set(p.id, { partner_id: p.supplier_id, facility_id: p.facility_id });
+            }
+        });
+
+        const returnList: { partner_id: string; facility_id: string; netTotal: number }[] = [];
+        (returnData || []).forEach(r => {
+            if (r.status !== 'COMPLETED' && r.status !== 'APPROVED') return;
+
+            const itemsTotal = (r.items || []).reduce((sum: number, item: any) => 
+                sum + Math.round(Number(item.quantity || 0) * Number(item.price || 0)), 0);
+            const netTotal = itemsTotal - Number(r.return_fee || 0) - Number(r.discount || 0);
+
+            const salesMatch = salesOrderMap.get(r.related_order_id);
+            const purchaseMatch = purchaseOrderMap.get(r.related_order_id);
+
+            if (salesMatch) {
+                returnList.push({
+                    partner_id: salesMatch.partner_id,
+                    facility_id: salesMatch.facility_id,
+                    netTotal: netTotal
+                });
+            } else if (purchaseMatch) {
+                returnList.push({
+                    partner_id: purchaseMatch.partner_id,
+                    facility_id: purchaseMatch.facility_id,
+                    netTotal: netTotal
+                });
+            }
+        });
 
         return data.map((item: any) => {
             const pId = item.id;
@@ -80,6 +129,11 @@ export const partnerService = {
                 }, 0);
                 totalBalance += txnSum;
             }
+            if (returnList.length > 0) {
+                const partnerReturns = returnList.filter(r => r.partner_id === pId);
+                const returnSum = partnerReturns.reduce((sum, r) => sum + r.netTotal, 0);
+                totalBalance -= returnSum;
+            }
 
             // Tính balance (theo chi nhánh nếu có)
             if (facilityId) {
@@ -106,6 +160,11 @@ export const partnerService = {
                         }
                     }, 0);
                     balance += txnSum;
+                }
+                if (returnList.length > 0) {
+                    const partnerFacilityReturns = returnList.filter(r => r.partner_id === pId && r.facility_id === facilityId);
+                    const facilityReturnSum = partnerFacilityReturns.reduce((sum, r) => sum + r.netTotal, 0);
+                    balance -= facilityReturnSum;
                 }
             } else {
                 balance = totalBalance;
