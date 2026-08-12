@@ -33,6 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onCollapsedChange }) => {
     { name: Page.ThuChi, path: '/thu-chi', icon: <ThuChiIcon /> },
     { name: Page.TaoPhieu, path: '/tao-phieu', icon: <PlusIcon /> },
     { name: Page.CongNo, path: '/cong-no', icon: <CongNoIcon /> },
+    { name: Page.CanhBaoNo, path: '/canh-bao-no', icon: <BaoCaoIcon /> },
     { name: Page.DoiTac, path: '/doi-tac', icon: <DoiTacIcon /> },
     { name: 'Báo cáo công nợ', path: '/bao-cao-cong-no', icon: <BaoCaoIcon /> },
     {

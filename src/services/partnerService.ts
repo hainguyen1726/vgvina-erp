@@ -540,5 +540,20 @@ export const partnerService = {
             created_by_name: t.creator?.full_name || 'Hệ thống',
             created_at: t.created_at
         }));
+    },
+
+    async updatePaymentDueDays(partnerId: string, dueDays: number) {
+        const { data, error } = await supabase
+            .from('vgvina_partners')
+            .update({ payment_due_days: dueDays })
+            .eq('id', partnerId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating payment due days:', error);
+            throw error;
+        }
+        return data;
     }
 };

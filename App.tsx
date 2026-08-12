@@ -27,6 +27,7 @@ import AdminHistory from './pages/AdminHistory';
 import AdminRoles from './pages/AdminRoles';
 import AdminFacilities from './pages/AdminFacilities';
 import DebtAgingReport from './pages/DebtAgingReport';
+import DebtWarning from './pages/DebtWarning';
 import { BranchProvider, useBranch } from './contexts/BranchContext';
 import UserStatusGuard from './components/auth/UserStatusGuard';
 import More from './pages/More';
@@ -190,6 +191,7 @@ const App: React.FC = () => {
                         <Route path="/thu-chi" element={<RequirePermission module="financial_transactions"><IncomeExpense /></RequirePermission>} />
                         <Route path="/tao-phieu" element={<CreateVoucherLanding />} />
                         <Route path="/cong-no" element={<RequirePermission module="debt"><Debt /></RequirePermission>} />
+                        <Route path="/canh-bao-no" element={<RequirePermission module="debt"><DebtWarning /></RequirePermission>} />
                         <Route path="/doi-tac" element={<RequirePermission module="partners"><Partners /></RequirePermission>} />
 
                         <Route path="/bao-cao" element={<RequirePermission module="reports"><ReportsLanding /></RequirePermission>} />

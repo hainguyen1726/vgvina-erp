@@ -3,6 +3,7 @@ export enum Page {
   ThuChi = 'Thu Chi',
   XuatNhap = 'Xuất/Nhập',
   CongNo = 'Công nợ',
+  CanhBaoNo = 'Cảnh báo nợ',
   DoiTac = 'Đối tác',
   BaoCao = 'Báo cáo',
   QuanTri = 'Quản trị',
@@ -289,4 +290,34 @@ export interface AdminAccount {
   account_number?: string;
   bank_name?: string;
   account_holder?: string;
+}
+
+export interface OverdueOrderInfo {
+  orderId: string;
+  code: string;
+  orderDate: string;
+  dueDate: string;
+  totalAmount: number;
+  amountPaid: number;
+  remainingAmount: number;
+  daysOverdue: number;
+  status: OrderStatus;
+  facilityName: string;
+  items: OrderItem[];
+  notes?: string;
+}
+
+export interface DebtWarningItem {
+  partnerId: string;
+  partnerName: string;
+  phone: string;
+  address: string;
+  taxCode?: string;
+  paymentDueDays: number;
+  overdueOrdersCount: number;
+  totalOverdueAmount: number;
+  maxDaysOverdue: number;
+  warningLevel: 'DANGER' | 'WARNING' | 'UPCOMING'; // DANGER (>7d overdue), WARNING (1-7d overdue), UPCOMING (1-2d until due)
+  orders: OverdueOrderInfo[];
+  facilityName?: string;
 }
