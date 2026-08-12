@@ -43,6 +43,10 @@ export const DebtWarning: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
 
+  // Settings Tab Pagination
+  const [settingsPage, setSettingsPage] = useState(1);
+  const [settingsItemsPerPage, setSettingsItemsPerPage] = useState(25);
+
   // Settings Tab states
   const [editingDueDays, setEditingDueDays] = useState<{ [partnerId: string]: number }>({});
   const [savingPartnerId, setSavingPartnerId] = useState<string | null>(null);
@@ -390,11 +394,30 @@ export const DebtWarning: React.FC = () => {
   }, [filteredWarnings]);
 
   // Pagination for Warnings Table
-  const totalPages = Math.ceil(filteredWarnings.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredWarnings.length / itemsPerPage) || 1;
   const paginatedWarnings = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredWarnings.slice(start, start + itemsPerPage);
   }, [filteredWarnings, currentPage, itemsPerPage]);
+
+  // Pagination for Settings Tab (Cấu hình Hạn Nợ)
+  const filteredSettingsPartners = useMemo(() => {
+    if (!partners) return [];
+    if (!searchTerm) return partners;
+    const term = searchTerm.toLowerCase();
+    return partners.filter(p =>
+      p.name.toLowerCase().includes(term) ||
+      (p.phone && p.phone.includes(term)) ||
+      (p.address && p.address.toLowerCase().includes(term)) ||
+      (p.tax_code && p.tax_code.toLowerCase().includes(term))
+    );
+  }, [partners, searchTerm]);
+
+  const settingsTotalPages = Math.ceil(filteredSettingsPartners.length / settingsItemsPerPage) || 1;
+  const paginatedSettingsPartners = useMemo(() => {
+    const start = (settingsPage - 1) * settingsItemsPerPage;
+    return filteredSettingsPartners.slice(start, start + settingsItemsPerPage);
+  }, [filteredSettingsPartners, settingsPage, settingsItemsPerPage]);
 
   // Save updated due days for partner
   const handleSavePartnerDueDays = async (partnerId: string) => {
@@ -742,21 +765,26 @@ export const DebtWarning: React.FC = () => {
       {/* Tab 2: Settings Tab - Set Payment Due Days per Partner */}
       {activeTab === 'SETTINGS' && (
         <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
-          <div className="border-b pb-4">
-            <h2 className="text-lg font-bold text-gray-900">Cấu Hình Hạn Công Nợ Cho Khách Hàng</h2>
-            <p className="text-xs text-gray-500 mt-1">
-              Nhập số ngày hạn trả nợ cho từng khách hàng (Ví dụ: 7 ngày, 10 ngày, 30 ngày). Đơn hàng vượt quá số ngày này sẽ tự động cảnh báo.
-            </p>
+          <div className="border-b pb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Cấu Hình Hạn Công Nợ Cho Khách Hàng</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Nhập số ngày hạn trả nợ cho từng khách hàng (Ví dụ: 7 ngày, 10 ngày, 30 ngày). Đơn hàng vượt quá số ngày này sẽ tự động cảnh báo.
+              </p>
+            </div>
+            <div className="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-md self-start sm:self-auto">
+              Tổng cộng: <span className="text-[#0066cc] font-bold">{filteredSettingsPartners.length}</span> khách hàng
+            </div>
           </div>
 
           <div className="relative max-w-md mb-4">
             <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Tìm tên khách hàng..."
+              placeholder="Tìm tên khách hàng, SĐT, mã số thuế..."
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm"
+              onChange={e => { setSearchTerm(e.target.value); setSettingsPage(1); }}
+              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-[#0066cc]"
             />
           </div>
 
@@ -772,15 +800,21 @@ export const DebtWarning: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {partners
-                  .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.phone && p.phone.includes(searchTerm)))
-                  .map((p, idx) => {
+                {paginatedSettingsPartners.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-gray-500">
+                      Không tìm thấy khách hàng nào phù hợp
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedSettingsPartners.map((p, idx) => {
+                    const globalIdx = (settingsPage - 1) * settingsItemsPerPage + idx + 1;
                     const currentDays = editingDueDays[p.id] !== undefined ? editingDueDays[p.id] : (p.payment_due_days || 0);
                     const isChanged = editingDueDays[p.id] !== undefined && editingDueDays[p.id] !== (p.payment_due_days || 0);
 
                     return (
                       <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 text-center text-gray-400">{idx + 1}</td>
+                        <td className="px-4 py-3 text-center text-gray-400 font-medium">{globalIdx}</td>
                         <td className="px-4 py-3 font-semibold text-gray-900">{p.name}</td>
                         <td className="px-4 py-3 text-xs text-gray-500">{p.phone} {p.address ? `• ${p.address}` : ''}</td>
                         <td className="px-4 py-3 text-center">
@@ -811,10 +845,27 @@ export const DebtWarning: React.FC = () => {
                         </td>
                       </tr>
                     );
-                  })}
+                  })
+                )}
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls for Settings Tab */}
+          {filteredSettingsPartners.length > 0 && (
+            <div className="pt-4 border-t flex justify-center">
+              <Pagination
+                currentPage={settingsPage}
+                totalPages={settingsTotalPages}
+                onPageChange={setSettingsPage}
+                itemsPerPage={settingsItemsPerPage}
+                onItemsPerPageChange={(val) => { setSettingsItemsPerPage(val); setSettingsPage(1); }}
+                totalItems={filteredSettingsPartners.length}
+                prevButtonContent={<ChevronLeftIcon />}
+                nextButtonContent={<ChevronRightIcon />}
+              />
+            </div>
+          )}
         </div>
       )}
 
