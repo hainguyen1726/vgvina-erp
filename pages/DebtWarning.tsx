@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useBranch } from '../contexts/BranchContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { supabase } from '../src/supabaseClient';
 import { partnerService } from '../src/services/partnerService';
 import { orderService } from '../src/services/orderService';
 import { transactionService } from '../src/services/transactionService';
@@ -58,10 +59,56 @@ export const DebtWarning: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+
+      const partnersPromise = partnerService.getPartners().catch(err => {
+        console.error('Error fetching partners:', err);
+        return [];
+      });
+
+      const ordersPromise = orderService.getSalesOrders().catch(err => {
+        console.error('Error fetching sales orders:', err);
+        return [];
+      });
+
+      const txnsPromise = (async () => {
+        try {
+          const { data, error } = await supabase
+            .from('vgvina_financial_transactions')
+            .select(`
+              id,
+              code,
+              type,
+              transaction_date,
+              amount,
+              partner_id,
+              account:account_id(name),
+              partner:partner_id(name)
+            `)
+            .eq('type', 'INCOME');
+          if (error) {
+            console.error('Error fetching financial transactions:', error);
+            return [];
+          }
+          return (data || []).map((t: any) => ({
+            id: String(t.id),
+            code: t.code,
+            type: t.type,
+            transaction_date: t.transaction_date,
+            amount: Number(t.amount) || 0,
+            partnerId: t.partner_id ? String(t.partner_id) : undefined,
+            partner_name: t.partner?.name,
+            account_name: t.account?.name
+          }));
+        } catch (e) {
+          console.error('Error fetching txns:', e);
+          return [];
+        }
+      })();
+
       const [partnersData, ordersData, txnsData] = await Promise.all([
-        partnerService.getPartners(),
-        orderService.getSalesOrders(),
-        transactionService.getTransactions()
+        partnersPromise,
+        ordersPromise,
+        txnsPromise
       ]);
 
       // Only include Customers for debt warnings
@@ -80,26 +127,75 @@ export const DebtWarning: React.FC = () => {
     }
   };
 
-  // 1. Calculate FIFO Debt & Overdue Status per Customer
+  // 1. Calculate FIFO Debt & Overdue Status per Customer (Fast O(N) indexing)
   const debtWarningList = useMemo(() => {
+    if (!partners || partners.length === 0 || !salesOrders || salesOrders.length === 0) {
+      return [];
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Pre-group sales orders by partner ID & partner Name
+    const ordersByPartnerMap = new Map<string, SalesOrder[]>();
+    salesOrders.forEach(o => {
+      if (o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.DELIVERED && String(o.status) !== 'COMPLETED' && String(o.status) !== 'DELIVERED') {
+        return;
+      }
+      const keyId = (o as any).customer_id ? String((o as any).customer_id) : '';
+      const keyName = o.customer_name ? o.customer_name.trim().toLowerCase() : '';
+
+      if (keyId) {
+        if (!ordersByPartnerMap.has(keyId)) ordersByPartnerMap.set(keyId, []);
+        ordersByPartnerMap.get(keyId)!.push(o);
+      }
+      if (keyName) {
+        if (!ordersByPartnerMap.has(keyName)) ordersByPartnerMap.set(keyName, []);
+        ordersByPartnerMap.get(keyName)!.push(o);
+      }
+    });
+
+    // Pre-group payment transactions (Phiếu Thu) sum by partner ID & partner Name
+    const paymentsByPartnerMap = new Map<string, number>();
+    (transactions || []).forEach(t => {
+      if (t.type !== TransactionType.INCOME && String(t.type) !== 'INCOME') return;
+      if (t.account_name === 'TK KN' || t.account_name === 'TK Nợ NCC') return;
+
+      const amt = Number(t.amount) || 0;
+      if (amt <= 0) return;
+
+      if (t.partnerId) {
+        const pId = String(t.partnerId);
+        paymentsByPartnerMap.set(pId, (paymentsByPartnerMap.get(pId) || 0) + amt);
+      }
+      if (t.partner_name) {
+        const pName = t.partner_name.trim().toLowerCase();
+        paymentsByPartnerMap.set(pName, (paymentsByPartnerMap.get(pName) || 0) + amt);
+      }
+    });
+
     const warnings: DebtWarningItem[] = [];
 
+    // Process each partner ONCE in O(1) per lookup
     partners.forEach(partner => {
       const dueDays = Number(partner.payment_due_days) || 0;
-      if (dueDays <= 0) return; // Ignore customers without a configured debt term (0 days)
+      if (dueDays <= 0) return; // Skip partners without a set debt term (0 days)
 
-      // Get all completed/delivered sales orders for this partner sorted by date ascending (oldest first)
-      const customerOrders = salesOrders
-        .filter(o =>
-          (o.customer_name === partner.name || (o as any).customer_id === partner.id) &&
-          (o.status === OrderStatus.COMPLETED || o.status === OrderStatus.DELIVERED || String(o.status) === 'COMPLETED' || String(o.status) === 'DELIVERED')
-        )
+      const pId = String(partner.id);
+      const pName = partner.name ? partner.name.trim().toLowerCase() : '';
+
+      // Retrieve orders for this partner (de-duplicate by order.id)
+      const rawOrders = [
+        ...(ordersByPartnerMap.get(pId) || []),
+        ...(ordersByPartnerMap.get(pName) || [])
+      ];
+      if (rawOrders.length === 0) return;
+
+      const orderMap = new Map<string, SalesOrder>();
+      rawOrders.forEach(o => orderMap.set(o.id, o));
+
+      const customerOrders = Array.from(orderMap.values())
         .sort((a, b) => new Date(a.order_date).getTime() - new Date(b.order_date).getTime());
-
-      if (customerOrders.length === 0) return;
 
       // Track un-deducted initial balance per order
       const orderList = customerOrders.map(o => {
@@ -114,17 +210,10 @@ export const DebtWarning: React.FC = () => {
         };
       });
 
-      // Get all payment income transactions (Phiếu Thu) for this customer
-      const customerPayments = transactions.filter(t =>
-        (t.type === TransactionType.INCOME || String(t.type) === 'INCOME') &&
-        (t.partnerId === partner.id || t.partner_name === partner.name) &&
-        t.account_name !== 'TK KN' && t.account_name !== 'TK Nợ NCC'
-      );
+      // Additional payment from Phiếu Thu
+      let totalAdditionalPayments = paymentsByPartnerMap.get(pId) || paymentsByPartnerMap.get(pName) || 0;
 
-      // Total additional payment received via Phiếu Thu
-      let totalAdditionalPayments = customerPayments.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
-      // Apply FIFO: Deduct additional payments from oldest unpaid orders first
+      // Apply FIFO
       for (const item of orderList) {
         if (totalAdditionalPayments <= 0) break;
         if (item.remaining <= 0) continue;
@@ -138,27 +227,24 @@ export const DebtWarning: React.FC = () => {
         }
       }
 
-      // Collect only orders that still have remaining > 0 after FIFO deduction
+      // Collect overdue orders
       const overdueOrders: OverdueOrderInfo[] = [];
       let totalOverdueForCustomer = 0;
       let maxDaysOverdueForCustomer = 0;
 
       orderList.forEach(item => {
-        if (item.remaining <= 0) return; // Fully paid via order amount_paid or Phiếu Thu!
+        if (item.remaining <= 0) return;
 
         const order = item.order;
         const orderDate = new Date(order.order_date);
         orderDate.setHours(0, 0, 0, 0);
 
-        // Due Date = Order Date + payment_due_days
         const dueDate = new Date(orderDate);
         dueDate.setDate(dueDate.getDate() + dueDays);
 
-        // Calculate days overdue
         const diffTime = today.getTime() - dueDate.getTime();
         const daysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-        // Order is overdue if daysOverdue > 0, or upcoming if -2 <= daysOverdue <= 0
         if (daysOverdue > 0 || (daysOverdue >= -2 && daysOverdue <= 0)) {
           if (daysOverdue > maxDaysOverdueForCustomer) {
             maxDaysOverdueForCustomer = daysOverdue;
