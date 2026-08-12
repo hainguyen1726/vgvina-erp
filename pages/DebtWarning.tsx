@@ -50,6 +50,7 @@ export const DebtWarning: React.FC = () => {
   // Settings Tab states
   const [editingDueDays, setEditingDueDays] = useState<{ [partnerId: string]: number }>({});
   const [savingPartnerId, setSavingPartnerId] = useState<string | null>(null);
+  const [showZeroDaysPartners, setShowZeroDaysPartners] = useState(false);
 
   // Modals
   const [selectedWarningPartner, setSelectedWarningPartner] = useState<DebtWarningItem | null>(null);
@@ -384,15 +385,19 @@ export const DebtWarning: React.FC = () => {
   // Pagination for Settings Tab (Cấu hình Hạn Nợ)
   const filteredSettingsPartners = useMemo(() => {
     if (!partners) return [];
-    if (!searchTerm) return partners;
+    let list = partners;
+    if (!showZeroDaysPartners) {
+      list = list.filter(p => (Number(p.payment_due_days) || 0) > 0);
+    }
+    if (!searchTerm) return list;
     const term = searchTerm.toLowerCase();
-    return partners.filter(p =>
+    return list.filter(p =>
       p.name.toLowerCase().includes(term) ||
       (p.phone && p.phone.includes(term)) ||
       (p.address && p.address.toLowerCase().includes(term)) ||
       (p.tax_code && p.tax_code.toLowerCase().includes(term))
     );
-  }, [partners, searchTerm]);
+  }, [partners, searchTerm, showZeroDaysPartners]);
 
   const settingsTotalPages = Math.ceil(filteredSettingsPartners.length / settingsItemsPerPage) || 1;
   const paginatedSettingsPartners = useMemo(() => {
@@ -758,15 +763,27 @@ export const DebtWarning: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative max-w-md mb-4">
-            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Tìm tên khách hàng, SĐT, mã số thuế..."
-              value={searchTerm}
-              onChange={e => { setSearchTerm(e.target.value); setSettingsPage(1); }}
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-[#0066cc]"
-            />
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mb-4">
+            <div className="relative flex-1 max-w-md">
+              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Tìm tên khách hàng, SĐT, mã số thuế..."
+                value={searchTerm}
+                onChange={e => { setSearchTerm(e.target.value); setSettingsPage(1); }}
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-[#0066cc]"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer select-none bg-gray-50 px-3 py-2 rounded-md border">
+              <input
+                type="checkbox"
+                checked={showZeroDaysPartners}
+                onChange={e => { setShowZeroDaysPartners(e.target.checked); setSettingsPage(1); }}
+                className="w-4 h-4 text-[#0066cc] rounded border-gray-300 focus:ring-[#0066cc]"
+              />
+              <span>Hiển thị cả khách hàng 0 ngày</span>
+            </label>
           </div>
 
           <div className="overflow-x-auto border rounded-lg">
