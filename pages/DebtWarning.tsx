@@ -88,19 +88,30 @@ export const DebtWarning: React.FC = () => {
         try {
           const { data, error } = await supabase
             .from('vgvina_sales_orders')
-            .select('id, code, order_date, total_amount, amount_paid, status, facility_id, customer_id, customer_name, notes')
+            .select('id, code, order_date, total_amount, amount_paid, status, facility_id, customer_id, notes, partner:customer_id(name), facility:facility_id(name)')
             .in('status', ['COMPLETED', 'DELIVERED'])
             .order('order_date', { ascending: false });
 
           if (error) {
             console.error('Error fetching sales orders:', error);
-            return [];
+            const { data: fallbackData } = await supabase
+              .from('vgvina_sales_orders')
+              .select('id, code, order_date, total_amount, amount_paid, status, facility_id, customer_id, notes')
+              .in('status', ['COMPLETED', 'DELIVERED'])
+              .order('order_date', { ascending: false });
+
+            return (fallbackData || []).map((o: any) => ({
+              ...o,
+              customer_name: '',
+              facility_name: '',
+              items: []
+            }));
           }
 
           return (data || []).map((o: any) => ({
             ...o,
-            customer_name: o.customer_name || '',
-            facility_name: '',
+            customer_name: o.partner?.name || '',
+            facility_name: o.facility?.name || '',
             items: []
           }));
         } catch (e) {
