@@ -96,6 +96,7 @@ export const DebtWarning: React.FC = () => {
       if (customerOrders.length === 0) return;
 
       const dueDays = Number(partner.payment_due_days) || 0;
+      if (dueDays <= 0) return; // Ignore customers without a configured debt term (0 days)
 
       // Track order payments using FIFO
       const overdueOrders: OverdueOrderInfo[] = [];
