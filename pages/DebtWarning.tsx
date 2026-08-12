@@ -184,6 +184,7 @@ export const DebtWarning: React.FC = () => {
     (transactions || []).forEach(t => {
       if (t.type !== TransactionType.INCOME && String(t.type) !== 'INCOME') return;
       if (t.account_name === 'TK KN' || t.account_name === 'TK Nợ NCC') return;
+      if (t.code && (t.code.startsWith('PT(N)') || t.code.startsWith('PC(N)'))) return;
 
       const amt = Number(t.amount) || 0;
       if (amt <= 0) return;
