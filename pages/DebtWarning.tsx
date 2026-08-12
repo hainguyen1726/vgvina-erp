@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useBranch } from '../contexts/BranchContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { partnerService } from '../src/services/partnerService';
@@ -295,6 +296,7 @@ export const DebtWarning: React.FC = () => {
   // Open Debt Notice Print Preview
   const handlePrintDebtNotice = (item: DebtWarningItem) => {
     const noticeData = {
+      debtType: 'RECEIVABLE',
       partner: {
         name: item.partnerName,
         address: item.address,
@@ -800,10 +802,11 @@ export const DebtWarning: React.FC = () => {
       )}
 
       {/* Hidden Print Container for Printable Debt Notice */}
-      {printNoticeData && (
+      {printNoticeData && createPortal(
         <div id="print-section" className="hidden print:block bg-white p-0 m-0 z-[100]">
           <PrintVoucherTemplate voucherType="debt-notice" data={printNoticeData} />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
