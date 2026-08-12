@@ -6,7 +6,7 @@ import { supabase } from '../src/supabaseClient';
 import { partnerService } from '../src/services/partnerService';
 import { orderService } from '../src/services/orderService';
 import { transactionService } from '../src/services/transactionService';
-import { Partner, SalesOrder, FinancialTransaction, DebtWarningItem, OverdueOrderInfo, PartnerType, OrderStatus } from '../types';
+import { Partner, SalesOrder, FinancialTransaction, DebtWarningItem, OverdueOrderInfo, PartnerType, OrderStatus, TransactionType } from '../types';
 import SearchableSelect from '../components/ui/SearchableSelect';
 import Pagination from '../components/ui/Pagination';
 import { ExportIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, PrintIcon, CloseIcon } from '../components/icons/Icons';
