@@ -365,12 +365,24 @@ const EditVoucherModal = ({ isOpen, onClose, item, onSave }: { isOpen: boolean, 
                         </div>
                         <div className="space-y-1">
                             <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Kho xuất</label>
-                            <SearchableSelect
-                                options={facilities.map(f => ({ id: f.id, name: f.name }))}
-                                value={fromFac}
-                                onChange={setFromFac}
-                                placeholder="Chọn kho xuất"
-                            />
+                            {(() => {
+                                const canSeeAll = currentUser?.is_admin === true ||
+                                    ['admin', 'Admin', 'Quản trị viên', 'Kế toán HO', 'Ban Lãnh đạo'].includes(currentUser?.role || '');
+                                const assignedIds = new Set((currentUser?.assigned_facilities || []).map(f => String(f.id)));
+                                if (currentUser?.facility_id) assignedIds.add(String(currentUser.facility_id));
+                                const availFacs = (canSeeAll || !currentUser || assignedIds.size === 0)
+                                    ? facilities
+                                    : facilities.filter(f => assignedIds.has(String(f.id)));
+                                return (
+                                    <SearchableSelect
+                                        options={availFacs.map(f => ({ id: f.id, name: f.name }))}
+                                        value={fromFac}
+                                        onChange={setFromFac}
+                                        placeholder="Chọn kho xuất"
+                                        disabled={!canSeeAll}
+                                    />
+                                );
+                            })()}
                         </div>
                         <div className="space-y-1">
                             <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Kho nhập</label>

@@ -394,9 +394,34 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onClose]);
 
+    const canSeeAllFacilities = useMemo(() => {
+        if (!currentUser) return true;
+        return (
+            currentUser.is_admin === true ||
+            ['Admin', 'admin', 'Quản trị viên', 'Kế toán HO', 'Ban Lãnh đạo'].includes(currentUser.role || '')
+        );
+    }, [currentUser]);
+
+    const userAvailableFacilities = useMemo(() => {
+        if (canSeeAllFacilities || !currentUser) {
+            return facilities;
+        }
+        const assignedIds = new Set((currentUser.assigned_facilities || []).map(f => String(f.id)));
+        if (currentUser.facility_id) {
+            assignedIds.add(String(currentUser.facility_id));
+        }
+        if (assignedIds.size === 0) {
+            return facilities;
+        }
+        return facilities.filter(f => assignedIds.has(String(f.id)));
+    }, [facilities, currentUser, canSeeAllFacilities]);
+
     // Set default facility based on current branch selection or user
     useEffect(() => {
-        if (selectedFacilityId) {
+        if (!canSeeAllFacilities && currentUser?.facility_id) {
+            setLocalFacilityId(currentUser.facility_id);
+            setFromWarehouse(currentUser.facility_id);
+        } else if (selectedFacilityId) {
             setLocalFacilityId(selectedFacilityId);
         } else if (currentUser?.facility_id) {
             setLocalFacilityId(currentUser.facility_id);
@@ -408,7 +433,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                 setLocalFacilityId(facilities[0].id);
             }
         }
-    }, [currentUser, facilities, selectedFacilityId]);
+    }, [currentUser, facilities, selectedFacilityId, canSeeAllFacilities]);
 
     useEffect(() => {
         if (voucherType === 'return-voucher' && relatedOrder) {
@@ -1087,10 +1112,11 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                         <div className="space-y-1">
                             <label className="font-medium text-gray-700">Cơ sở</label>
                             <SearchableSelect
-                                options={facilities.map(f => ({ id: f.id, name: f.name }))}
+                                options={userAvailableFacilities.map(f => ({ id: f.id, name: f.name }))}
                                 value={localFacilityId}
                                 onChange={setLocalFacilityId}
-                                placeholder={`Chọn cơ sở (${facilities.length})`}
+                                placeholder={`Chọn cơ sở (${userAvailableFacilities.length})`}
+                                disabled={!canSeeAllFacilities}
                             />
                         </div>
                         <div className="space-y-1 md:col-span-2">
@@ -1172,10 +1198,11 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                     <div className="space-y-1">
                         <label className="font-medium text-gray-700">Cơ sở</label>
                         <SearchableSelect
-                            options={facilities.map(f => ({ id: f.id, name: f.name }))}
+                            options={userAvailableFacilities.map(f => ({ id: f.id, name: f.name }))}
                             value={localFacilityId}
                             onChange={setLocalFacilityId}
                             placeholder="Chọn cơ sở"
+                            disabled={!canSeeAllFacilities}
                         />
                     </div>
                     {voucherType === 'delivery-note' && (
@@ -2050,10 +2077,11 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                     <div className="space-y-1">
                         <label className="font-medium text-gray-700">Kho xuất</label>
                         <SearchableSelect
-                            options={facilities.map(w => ({ id: w.id, name: w.name }))}
+                            options={userAvailableFacilities.map(w => ({ id: w.id, name: w.name }))}
                             value={fromWarehouse}
                             onChange={setFromWarehouse}
                             placeholder="Chọn kho xuất"
+                            disabled={!canSeeAllFacilities}
                         />
                     </div>
                     <div className="space-y-1">

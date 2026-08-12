@@ -294,7 +294,7 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
 
 
             {/* Header */}
-            <div className="flex justify-between mb-6">
+            <div className="flex justify-between mb-4">
                 <div>
                     <h3 className="font-bold text-base uppercase">{company.name}</h3>
                     {company.taxCode && <p>MST/Mã số HKD: {company.taxCode}</p>}
@@ -307,14 +307,14 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                 </div>
             </div>
 
-            <div className="text-center mb-6">
+            <div className="text-center mb-4">
                 <h1 className="text-2xl font-bold uppercase mb-1">{getVoucherTypeLabel(voucherType)}</h1>
                 <p className="italic">{formatDate(data.date)}</p>
                 {data.code && <p className="font-bold mt-1">Số: {data.code}</p>}
             </div>
 
             {/* General Info */}
-            <div className="mb-6 space-y-1">
+            <div className="mb-4 space-y-1">
                 {data.partner && (
                     <div className="flex">
                         <span className="w-32 font-bold">{voucherType === 'purchase-order' ? 'Nhà cung cấp:' : 'Khách hàng:'}</span>
@@ -371,38 +371,37 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
 
             {/* Items Table (if items exist) */}
             {data.items && data.items.length > 0 && (
-                <table className="w-full border-collapse border border-black mb-6 text-sm">
+                <table className="w-full border-collapse border border-black mb-4 text-sm">
                     <thead>
                         <tr className="bg-gray-100">
-                            <th className="border border-black p-2 text-center w-12">STT</th>
-                            <th className="border border-black p-2 text-center">
+                            <th className="border border-black p-1.5 text-center w-12">STT</th>
+                            <th className="border border-black p-1.5 text-center">
                                 {voucherType === 'internal-transfer' ? 'Hàng hóa' : 'Tên nhãn hiệu, quy cách, phẩm chất vật tư, dụng cụ, sản phẩm, hàng hoá'}
                             </th>
-                            <th className="border border-black p-2 text-center w-16">Mã số</th>
-                            <th className="border border-black p-2 text-center w-16">ĐVT</th>
-                            <th className="border border-black p-2 text-center w-20">Số lượng</th>
-                            <th className="border border-black p-2 text-center w-24">Đơn giá</th>
-                            <th className="border border-black p-2 text-center w-28">Thành tiền</th>
+                            <th className="border border-black p-1.5 text-center w-16">Mã số</th>
+                            <th className="border border-black p-1.5 text-center w-16">ĐVT</th>
+                            <th className="border border-black p-1.5 text-center w-20">Số lượng</th>
+                            <th className="border border-black p-1.5 text-center w-24">Đơn giá</th>
+                            <th className="border border-black p-1.5 text-center w-28">Thành tiền</th>
                         </tr>
                     </thead>
                     <tbody>
                         {data.items.map((item: any, index: number) => (
                             <tr key={index}>
-                                <td className="border border-black p-2 text-center">{index + 1}</td>
-                                <td className="border border-black p-2">{item.name}</td>
-                                <td className="border border-black p-2 text-center">{item.sku}</td>
-                                <td className="border border-black p-2 text-center">{item.unit}</td>
-                                <td className="border border-black p-2 text-center">{item.quantity}</td>
-                                <td className="border border-black p-2 text-right">{formatCurrency(item.price)}</td>
-                                <td className="border border-black p-2 text-right">{formatCurrency(item.total)}</td>
+                                <td className="border border-black p-1.5 text-center">{index + 1}</td>
+                                <td className="border border-black p-1.5">{item.name}</td>
+                                <td className="border border-black p-1.5 text-center">{item.sku}</td>
+                                <td className="border border-black p-1.5 text-center">{item.unit}</td>
+                                <td className="border border-black p-1.5 text-center">{item.quantity}</td>
+                                <td className="border border-black p-1.5 text-right">{formatCurrency(item.price)}</td>
+                                <td className="border border-black p-1.5 text-right">{formatCurrency(item.total)}</td>
                             </tr>
                         ))}
                     </tbody>
                     <tfoot>
-                        {/* Optional Discount/Paid rows could go here if detail needed */}
                         <tr className="font-bold">
-                            <td colSpan={6} className="border border-black p-2 text-right">Tổng cộng:</td>
-                            <td className="border border-black p-2 text-right">{formatCurrency(data.summary?.total || 0)}</td>
+                            <td colSpan={6} className="border border-black p-1.5 text-right">Tổng cộng:</td>
+                            <td className="border border-black p-1.5 text-right">{formatCurrency(data.summary?.total || 0)}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -410,19 +409,19 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
 
             {/* Summary for non-item vouchers like simple Income/Expense */}
             {(!data.items || data.items.length === 0) && data.amount && (
-                <div className="mb-6 font-bold text-lg">
+                <div className="mb-4 font-bold text-lg">
                     Số tiền: {formatCurrency(data.amount)}
                 </div>
             )}
 
             {/* Text amount */}
-            <div className="mb-6 italic">
+            <div className="mb-4 italic">
                 (Bằng chữ: {numberToWords(data.amount || data.summary?.total || 0)})
             </div>
 
             {/* Default Bank Account For Delivery Note */}
             {voucherType === 'delivery-note' && (
-                <div className="mb-6 pl-4 border-l-4 border-gray-300">
+                <div className="mb-4 pl-4 border-l-4 border-gray-300">
                     <p className="font-bold mb-1">Quý khách có thể thanh toán theo thông tin tài khoản như sau:</p>
                     <div className="flex gap-16 mb-1">
                         <p><span className="italic">Ngân hàng:</span> {data.bankInfo?.bankName || company.bankInfo?.bankName || '...'}</p>
@@ -434,7 +433,7 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
 
             {/* Valid for all */}
             {voucherType !== 'internal-transfer' && (
-                <div className="text-right italic mb-8">
+                <div className="text-right italic mb-4">
                     {formatDate(data.date)}
                 </div>
             )}
@@ -443,22 +442,24 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                 <div className={voucherType === 'delivery-note' ? 'w-1/2' : 'w-1/4'}>
                     <p className="font-bold">{voucherType === 'delivery-note' ? 'Người bán hàng' : 'Người lập phiếu'}</p>
                     <p className="italic text-xs">(Ký, họ tên)</p>
-                    <br /><br /><br /><br />
-                    <p></p>
+                    <div className="h-16"></div>
                 </div>
                 <div className={voucherType === 'delivery-note' ? 'w-1/2' : 'w-1/4'}>
                     <p className="font-bold">{voucherType === 'delivery-note' ? 'Người nhận hàng' : 'Người giao hàng'}</p>
                     <p className="italic text-xs">(Ký, họ tên)</p>
+                    <div className="h-16"></div>
                 </div>
                 {voucherType !== 'delivery-note' && (
                     <>
                         <div className="w-1/4">
                             <p className="font-bold">Thủ kho</p>
                             <p className="italic text-xs">(Ký, họ tên)</p>
+                            <div className="h-16"></div>
                         </div>
                         <div className="w-1/4">
                             <p className="font-bold">Giám đốc</p>
                             <p className="italic text-xs">(Ký, họ tên)</p>
+                            <div className="h-16"></div>
                         </div>
                     </>
                 )}

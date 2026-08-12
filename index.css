@@ -35,8 +35,8 @@
 /* Print CSS */
 @media print {
   @page {
-    size: auto;
-    margin: 0;
+    size: A4 portrait;
+    margin: 8mm 10mm;
   }
 
   body > *:not(#print-section) {
@@ -57,29 +57,36 @@
     margin: 0 !important;
     padding: 0 !important;
     height: auto !important;
-    min-height: auto !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
     background: white !important;
     -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .print-container {
-    padding: 1.5cm 1.2cm !important;
+    padding: 2mm 0 !important;
+    margin: 0 !important;
     position: relative !important;
     box-sizing: border-box !important;
     background: white !important;
     page-break-inside: avoid !important;
     page-break-after: avoid !important;
+    break-inside: avoid !important;
+    break-after: avoid !important;
   }
 
   .print-footer {
-    margin-top: 1.5cm !important;
+    margin-top: 10px !important;
     text-align: left !important;
     font-size: 10px !important;
     color: #888 !important;
     border-top: 0.5px solid #eee !important;
-    padding-top: 5px !important;
+    padding-top: 4px !important;
     display: flex !important;
     justify-content: space-between !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .no-print {

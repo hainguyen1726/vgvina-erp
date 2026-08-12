@@ -138,15 +138,21 @@ const ReportIncomeExpenseCategory: React.FC = () => {
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
   const [visibleDetailColumns, setVisibleDetailColumns] = useState<string[]>(['transaction_date', 'description', 'partner_name', 'facility_name', 'account_name', 'amount']);
 
-  const { currentUser } = useBranch();
+  const { currentUser, selectedBranch, selectedFacilityId } = useBranch();
 
-
-  const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState(false);
   const [selectedTimeFilter, setSelectedTimeFilter] = useState('All time');
-  const [isCustomRangeVisible, setIsCustomRangeVisible] = useState(false);
-  const timeDropdownRef = useRef<HTMLDivElement>(null);
   const [customDates, setCustomDates] = useState<{ from: string; to: string }>({ from: '', to: '' });
-  const [tempCustomDates, setTempCustomDates] = useState<{ from: string; to: string }>({ from: '', to: '' });
+
+  const handleTimeFilterChange = (filter: string, dates?: { from: Date; to: Date }) => {
+    setSelectedTimeFilter(filter);
+    if (dates) {
+      setCustomDates({
+        from: dates.from.toISOString().split('T')[0],
+        to: dates.to.toISOString().split('T')[0]
+      });
+    }
+    setCurrentPage(1);
+  };
 
   // Load visible columns from localStorage
   useEffect(() => {
@@ -203,19 +209,101 @@ const ReportIncomeExpenseCategory: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [isMobile]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (timeDropdownRef.current && !timeDropdownRef.current.contains(event.target as Node)) {
-        setIsTimeDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+  // Filter transactions by branch, date range, and search term
+  const filteredTransactions = useMemo(() => {
+    let result = transactions;
 
-  const categoryData = useMemo(() => processDataForCategoryReport(transactions), [transactions]);
+    // Filter by branch
+    if (selectedFacilityId && selectedBranch !== 'Tất cả chi nhánh') {
+      result = result.filter(t => t.facility_id === selectedFacilityId || t.facility_name === selectedBranch);
+    }
+
+    // Filter by date range
+    const now = new Date();
+    let fromDate: Date | null = null;
+    let toDate: Date | null = new Date();
+    toDate.setHours(23, 59, 59, 999);
+
+    switch (selectedTimeFilter) {
+      case 'Hôm nay':
+        fromDate = new Date();
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      case 'Hôm qua':
+        fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - 1);
+        fromDate.setHours(0, 0, 0, 0);
+        toDate = new Date();
+        toDate.setDate(toDate.getDate() - 1);
+        toDate.setHours(23, 59, 59, 999);
+        break;
+      case 'Tuần này':
+        fromDate = new Date();
+        const dayOfWeek = fromDate.getDay();
+        const diff = fromDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+        fromDate = new Date(fromDate.setDate(diff));
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      case 'Tháng này':
+        fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case 'Tháng trước':
+        fromDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        toDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        break;
+      case 'Quý này':
+        const quarter = Math.floor(now.getMonth() / 3);
+        fromDate = new Date(now.getFullYear(), quarter * 3, 1);
+        break;
+      case 'Quý trước':
+        const prevQuarter = Math.floor(now.getMonth() / 3) - 1;
+        const qYear = prevQuarter < 0 ? now.getFullYear() - 1 : now.getFullYear();
+        const qMonth = prevQuarter < 0 ? 9 : prevQuarter * 3;
+        fromDate = new Date(qYear, qMonth, 1);
+        toDate = new Date(qYear, qMonth + 3, 0, 23, 59, 59, 999);
+        break;
+      case 'Năm nay':
+        fromDate = new Date(now.getFullYear(), 0, 1);
+        break;
+      case 'Năm trước':
+        fromDate = new Date(now.getFullYear() - 1, 0, 1);
+        toDate = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+        break;
+      case 'Tùy chọn':
+        fromDate = customDates.from ? new Date(customDates.from) : null;
+        toDate = customDates.to ? new Date(customDates.to) : null;
+        if (fromDate) fromDate.setHours(0, 0, 0, 0);
+        if (toDate) toDate.setHours(23, 59, 59, 999);
+        break;
+      default:
+        fromDate = null;
+        toDate = null;
+        break;
+    }
+
+    if (fromDate || toDate) {
+      result = result.filter(t => {
+        const transactionDate = new Date(t.transaction_date);
+        if (fromDate && transactionDate < fromDate) return false;
+        if (toDate && transactionDate > toDate) return false;
+        return true;
+      });
+    }
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(t =>
+        t.description.toLowerCase().includes(term) ||
+        (t.category && t.category.toLowerCase().includes(term)) ||
+        (t.partner_name && t.partner_name.toLowerCase().includes(term)) ||
+        (t.code && t.code.toLowerCase().includes(term))
+      );
+    }
+
+    return result;
+  }, [transactions, selectedFacilityId, selectedBranch, selectedTimeFilter, customDates, searchTerm]);
+
+  const categoryData = useMemo(() => processDataForCategoryReport(filteredTransactions), [filteredTransactions]);
 
   const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -231,7 +319,7 @@ const ReportIncomeExpenseCategory: React.FC = () => {
     const categoryKey = selectedCategory.name === 'Chưa phân loại' ? undefined : selectedCategory.name;
     const accountMap = new Map(adminAccounts.map(acc => [acc.id, acc.name]));
 
-    let filtered: TransactionWithAccount[] = transactions
+    let filtered: TransactionWithAccount[] = filteredTransactions
       .filter(t =>
         (categoryKey === undefined ? !t.category || t.category === '' : t.category === categoryKey)
       )
@@ -239,52 +327,6 @@ const ReportIncomeExpenseCategory: React.FC = () => {
         ...t,
         account_name: t.accountId ? accountMap.get(t.accountId) || 'N/A' : 'N/A'
       }));
-
-
-    const now = new Date();
-    let fromDate: Date | null = null;
-    let toDate: Date | null = new Date();
-    toDate.setHours(23, 59, 59, 999);
-
-    switch (selectedTimeFilter) {
-      case 'Hôm nay': fromDate = new Date(); fromDate.setHours(0, 0, 0, 0); break;
-      case 'Hôm qua':
-        fromDate = new Date();
-        fromDate.setDate(fromDate.getDate() - 1);
-        fromDate.setHours(0, 0, 0, 0);
-        toDate = new Date();
-        toDate.setDate(toDate.getDate() - 1);
-        toDate.setHours(23, 59, 59, 999);
-        break;
-      case 'Tuần này': fromDate = new Date(); const dayOfWeek = fromDate.getDay(); const diff = fromDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1); fromDate = new Date(fromDate.setDate(diff)); fromDate.setHours(0, 0, 0, 0); break;
-      case 'Tháng này': fromDate = new Date(now.getFullYear(), now.getMonth(), 1); break;
-      case 'Quý này': const quarter = Math.floor(now.getMonth() / 3); fromDate = new Date(now.getFullYear(), quarter * 3, 1); break;
-      case 'Năm nay': fromDate = new Date(now.getFullYear(), 0, 1); break;
-      case 'Tùy chọn':
-        fromDate = customDates.from ? new Date(customDates.from) : null;
-        toDate = customDates.to ? new Date(customDates.to) : null;
-        if (fromDate) fromDate.setHours(0, 0, 0, 0);
-        if (toDate) toDate.setHours(23, 59, 59, 999);
-        break;
-      default: fromDate = null; toDate = null; break;
-    }
-
-    if (fromDate || toDate) {
-      filtered = filtered.filter(t => {
-        const transactionDate = new Date(t.transaction_date);
-        if (fromDate && transactionDate < fromDate) return false;
-        if (toDate && transactionDate > toDate) return false;
-        return true;
-      });
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter(t =>
-        t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (t.partner_name && t.partner_name.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
 
     if (sortConfig) {
       filtered.sort((a, b) => {
@@ -311,7 +353,7 @@ const ReportIncomeExpenseCategory: React.FC = () => {
     }
 
     return filtered;
-  }, [selectedCategory, searchTerm, selectedTimeFilter, customDates, sortConfig, transactions]);
+  }, [selectedCategory, filteredTransactions, sortConfig, adminAccounts]);
 
   const totalPages = Math.ceil(sortedTransactions.length / itemsPerPage);
   const paginatedTransactions = sortedTransactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -597,7 +639,13 @@ const ReportIncomeExpenseCategory: React.FC = () => {
 
   const renderListView = () => (
     <>
-      <FilterBar onSearch={() => { }} onTimeFilterChange={() => { }} pageTitle="Báo cáo thu chi theo hạng mục" backPath="/bao-cao" />
+      <FilterBar
+        onSearch={setSearchTerm}
+        onTimeFilterChange={handleTimeFilterChange}
+        pageTitle="Báo cáo thu chi theo hạng mục"
+        backPath="/bao-cao"
+        initialFilter={selectedTimeFilter}
+      />
       <div className="bg-white p-6 rounded-lg shadow-sm mt-4">
         {/* Summary row */}
         <div className="grid grid-cols-3 gap-4 mb-6">
