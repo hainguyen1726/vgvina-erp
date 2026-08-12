@@ -5,7 +5,7 @@ import { useNotification } from '../contexts/NotificationContext';
 import { partnerService } from '../src/services/partnerService';
 import { orderService } from '../src/services/orderService';
 import { transactionService } from '../src/services/transactionService';
-import { Partner, SalesOrder, FinancialTransaction, DebtWarningItem, OverdueOrderInfo, PartnerType } from '../types';
+import { Partner, SalesOrder, FinancialTransaction, DebtWarningItem, OverdueOrderInfo, PartnerType, OrderStatus } from '../types';
 import SearchableSelect from '../components/ui/SearchableSelect';
 import Pagination from '../components/ui/Pagination';
 import { ExportIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, PrintIcon, CloseIcon } from '../components/icons/Icons';
