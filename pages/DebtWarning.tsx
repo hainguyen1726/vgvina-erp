@@ -88,9 +88,9 @@ export const DebtWarning: React.FC = () => {
     const warnings: DebtWarningItem[] = [];
 
     partners.forEach(partner => {
-      // Get all sales orders for this partner sorted by date ascending (oldest first)
+      // Get all completed/delivered sales orders for this partner sorted by date ascending (oldest first)
       const customerOrders = salesOrders
-        .filter(o => o.customer_name === partner.name)
+        .filter(o => o.customer_name === partner.name && (o.status === OrderStatus.COMPLETED || o.status === OrderStatus.DELIVERED || String(o.status) === 'COMPLETED' || String(o.status) === 'DELIVERED'))
         .sort((a, b) => new Date(a.order_date).getTime() - new Date(b.order_date).getTime());
 
       if (customerOrders.length === 0) return;
