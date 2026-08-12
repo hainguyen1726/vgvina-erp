@@ -64,28 +64,25 @@ export const DebtWarning: React.FC = () => {
     try {
       setLoading(true);
 
-      const partnersPromise = partnerService.getPartners().catch(err => {
-        console.error('Error fetching partners:', err);
-        return [];
-      });
+      const partnersPromise = (async () => {
+        try {
+          const { data, error } = await supabase
+            .from('vgvina_partners')
+            .select('id, name, phone, address, tax_code, payment_due_days, type, payment_term')
+            .eq('type', 'CUSTOMER');
+          if (error) throw error;
+          return data || [];
+        } catch (err) {
+          console.error('Error fetching partners:', err);
+          return [];
+        }
+      })();
 
       const ordersPromise = (async () => {
         try {
           const { data, error } = await supabase
             .from('vgvina_sales_orders')
-            .select(`
-              id,
-              code,
-              order_date,
-              total_amount,
-              amount_paid,
-              status,
-              facility_id,
-              customer_id,
-              notes,
-              partner:customer_id ( name ),
-              facility:facility_id ( name )
-            `)
+            .select('id, code, order_date, total_amount, amount_paid, status, facility_id, customer_id, notes')
             .in('status', ['COMPLETED', 'DELIVERED'])
             .order('order_date', { ascending: false });
 
@@ -96,8 +93,8 @@ export const DebtWarning: React.FC = () => {
 
           return (data || []).map((o: any) => ({
             ...o,
-            customer_name: o.partner?.name || '',
-            facility_name: o.facility?.name || '',
+            customer_name: '',
+            facility_name: '',
             items: []
           }));
         } catch (e) {
@@ -110,16 +107,7 @@ export const DebtWarning: React.FC = () => {
         try {
           const { data, error } = await supabase
             .from('vgvina_financial_transactions')
-            .select(`
-              id,
-              code,
-              type,
-              transaction_date,
-              amount,
-              partner_id,
-              account:account_id(name),
-              partner:partner_id(name)
-            `)
+            .select('id, code, type, transaction_date, amount, partner_id')
             .eq('type', 'INCOME');
           if (error) {
             console.error('Error fetching financial transactions:', error);
@@ -131,9 +119,7 @@ export const DebtWarning: React.FC = () => {
             type: t.type,
             transaction_date: t.transaction_date,
             amount: Number(t.amount) || 0,
-            partnerId: t.partner_id ? String(t.partner_id) : undefined,
-            partner_name: t.partner?.name,
-            account_name: t.account?.name
+            partnerId: t.partner_id ? String(t.partner_id) : undefined
           }));
         } catch (e) {
           console.error('Error fetching txns:', e);
@@ -141,18 +127,13 @@ export const DebtWarning: React.FC = () => {
         }
       })();
 
-      const [partnersData, ordersData, txnsData] = await Promise.all([
+      const [customers, ordersData, txnsData] = await Promise.all([
         partnersPromise,
         ordersPromise,
         txnsPromise
       ]);
 
-      // Only include Customers for debt warnings
-      const customers = (partnersData || []).filter(
-        p => p.type === PartnerType.CUSTOMER || String(p.type).toUpperCase() === PartnerType.CUSTOMER
-      );
-
-      setPartners(customers);
+      setPartners(customers || []);
       setSalesOrders(ordersData || []);
       setTransactions(txnsData || []);
     } catch (err: any) {
