@@ -88,28 +88,65 @@ export const DebtWarning: React.FC = () => {
     const warnings: DebtWarningItem[] = [];
 
     partners.forEach(partner => {
+      const dueDays = Number(partner.payment_due_days) || 0;
+      if (dueDays <= 0) return; // Ignore customers without a configured debt term (0 days)
+
       // Get all completed/delivered sales orders for this partner sorted by date ascending (oldest first)
       const customerOrders = salesOrders
-        .filter(o => o.customer_name === partner.name && (o.status === OrderStatus.COMPLETED || o.status === OrderStatus.DELIVERED || String(o.status) === 'COMPLETED' || String(o.status) === 'DELIVERED'))
+        .filter(o =>
+          (o.customer_name === partner.name || (o as any).customer_id === partner.id) &&
+          (o.status === OrderStatus.COMPLETED || o.status === OrderStatus.DELIVERED || String(o.status) === 'COMPLETED' || String(o.status) === 'DELIVERED')
+        )
         .sort((a, b) => new Date(a.order_date).getTime() - new Date(b.order_date).getTime());
 
       if (customerOrders.length === 0) return;
 
-      const dueDays = Number(partner.payment_due_days) || 0;
-      if (dueDays <= 0) return; // Ignore customers without a configured debt term (0 days)
+      // Track un-deducted initial balance per order
+      const orderList = customerOrders.map(o => {
+        const total = Number(o.total_amount) || 0;
+        const paidAtOrder = Number(o.amount_paid) || 0;
+        const initialDebt = Math.max(0, total - paidAtOrder);
+        return {
+          order: o,
+          totalAmount: total,
+          paidAtOrder,
+          remaining: initialDebt
+        };
+      });
 
-      // Track order payments using FIFO
+      // Get all payment income transactions (Phiếu Thu) for this customer
+      const customerPayments = transactions.filter(t =>
+        (t.type === TransactionType.INCOME || String(t.type) === 'INCOME') &&
+        (t.partnerId === partner.id || t.partner_name === partner.name) &&
+        t.account_name !== 'TK KN' && t.account_name !== 'TK Nợ NCC'
+      );
+
+      // Total additional payment received via Phiếu Thu
+      let totalAdditionalPayments = customerPayments.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+      // Apply FIFO: Deduct additional payments from oldest unpaid orders first
+      for (const item of orderList) {
+        if (totalAdditionalPayments <= 0) break;
+        if (item.remaining <= 0) continue;
+
+        if (totalAdditionalPayments >= item.remaining) {
+          totalAdditionalPayments -= item.remaining;
+          item.remaining = 0;
+        } else {
+          item.remaining -= totalAdditionalPayments;
+          totalAdditionalPayments = 0;
+        }
+      }
+
+      // Collect only orders that still have remaining > 0 after FIFO deduction
       const overdueOrders: OverdueOrderInfo[] = [];
       let totalOverdueForCustomer = 0;
       let maxDaysOverdueForCustomer = 0;
 
-      customerOrders.forEach(order => {
-        const orderTotal = Number(order.total_amount) || 0;
-        const paid = Number(order.amount_paid) || 0;
-        const remaining = orderTotal - paid;
+      orderList.forEach(item => {
+        if (item.remaining <= 0) return; // Fully paid via order amount_paid or Phiếu Thu!
 
-        if (remaining <= 0) return; // Order is fully paid
-
+        const order = item.order;
         const orderDate = new Date(order.order_date);
         orderDate.setHours(0, 0, 0, 0);
 
@@ -127,16 +164,16 @@ export const DebtWarning: React.FC = () => {
             maxDaysOverdueForCustomer = daysOverdue;
           }
 
-          totalOverdueForCustomer += remaining;
+          totalOverdueForCustomer += item.remaining;
 
           overdueOrders.push({
             orderId: order.id,
             code: order.code,
             orderDate: order.order_date,
             dueDate: dueDate.toISOString().split('T')[0],
-            totalAmount: orderTotal,
-            amountPaid: paid,
-            remainingAmount: remaining,
+            totalAmount: item.totalAmount,
+            amountPaid: item.totalAmount - item.remaining,
+            remainingAmount: item.remaining,
             daysOverdue: daysOverdue,
             status: order.status,
             facilityName: order.facility_name,
@@ -174,7 +211,7 @@ export const DebtWarning: React.FC = () => {
     });
 
     return warnings.sort((a, b) => b.maxDaysOverdue - a.maxDaysOverdue);
-  }, [partners, salesOrders]);
+  }, [partners, salesOrders, transactions]);
 
   // 2. Filter warnings list
   const filteredWarnings = useMemo(() => {
