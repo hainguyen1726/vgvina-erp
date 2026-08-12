@@ -65,10 +65,42 @@ export const DebtWarning: React.FC = () => {
         return [];
       });
 
-      const ordersPromise = orderService.getSalesOrders().catch(err => {
-        console.error('Error fetching sales orders:', err);
-        return [];
-      });
+      const ordersPromise = (async () => {
+        try {
+          const { data, error } = await supabase
+            .from('vgvina_sales_orders')
+            .select(`
+              id,
+              code,
+              order_date,
+              total_amount,
+              amount_paid,
+              status,
+              facility_id,
+              customer_id,
+              notes,
+              partner:customer_id ( name ),
+              facility:facility_id ( name )
+            `)
+            .in('status', ['COMPLETED', 'DELIVERED'])
+            .order('order_date', { ascending: false });
+
+          if (error) {
+            console.error('Error fetching sales orders:', error);
+            return [];
+          }
+
+          return (data || []).map((o: any) => ({
+            ...o,
+            customer_name: o.partner?.name || '',
+            facility_name: o.facility?.name || '',
+            items: []
+          }));
+        } catch (e) {
+          console.error('Error in ordersPromise:', e);
+          return [];
+        }
+      })();
 
       const txnsPromise = (async () => {
         try {
@@ -414,6 +446,21 @@ export const DebtWarning: React.FC = () => {
     } catch (err: any) {
       console.error('Export Excel failed:', err);
       showNotification('Lỗi khi xuất file Excel', 'error');
+    }
+  };
+
+  // Open Order Detail Modal (Loads items on demand if empty)
+  const handleOpenOrderDetail = async (ord: OverdueOrderInfo) => {
+    setSelectedOrderForDetail(ord);
+    if (!ord.items || ord.items.length === 0) {
+      try {
+        const fullOrder = await orderService.getSalesOrderById(ord.orderId);
+        if (fullOrder && fullOrder.items) {
+          setSelectedOrderForDetail(prev => prev ? { ...prev, items: fullOrder.items } : null);
+        }
+      } catch (err) {
+        console.error('Failed to load order items on demand:', err);
+      }
     }
   };
 
@@ -824,7 +871,7 @@ export const DebtWarning: React.FC = () => {
                         </td>
                         <td className="px-3 py-2.5 text-center">
                           <button
-                            onClick={() => setSelectedOrderForDetail(ord)}
+                            onClick={() => handleOpenOrderDetail(ord)}
                             className="px-2.5 py-1 text-xs font-semibold text-[#0066cc] bg-white border border-[#0066cc] rounded hover:bg-blue-50"
                           >
                             Xem 🔍
