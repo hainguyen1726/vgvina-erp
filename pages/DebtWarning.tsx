@@ -69,10 +69,15 @@ export const DebtWarning: React.FC = () => {
         try {
           const { data, error } = await supabase
             .from('vgvina_partners')
-            .select('id, name, phone, address, tax_code, payment_due_days, type, payment_term')
-            .eq('type', 'CUSTOMER');
+            .select('id, name, phone, address, tax_code, payment_due_days, type, payment_term');
           if (error) throw error;
-          return data || [];
+          const allPartners = data || [];
+          return allPartners.filter(p =>
+            !p.type ||
+            p.type === PartnerType.CUSTOMER ||
+            String(p.type).toUpperCase() === 'CUSTOMER' ||
+            String(p.type) === 'Khách hàng'
+          );
         } catch (err) {
           console.error('Error fetching partners:', err);
           return [];
@@ -83,7 +88,7 @@ export const DebtWarning: React.FC = () => {
         try {
           const { data, error } = await supabase
             .from('vgvina_sales_orders')
-            .select('id, code, order_date, total_amount, amount_paid, status, facility_id, customer_id, notes')
+            .select('id, code, order_date, total_amount, amount_paid, status, facility_id, customer_id, customer_name, notes')
             .in('status', ['COMPLETED', 'DELIVERED'])
             .order('order_date', { ascending: false });
 
@@ -94,7 +99,7 @@ export const DebtWarning: React.FC = () => {
 
           return (data || []).map((o: any) => ({
             ...o,
-            customer_name: '',
+            customer_name: o.customer_name || '',
             facility_name: '',
             items: []
           }));
@@ -108,7 +113,7 @@ export const DebtWarning: React.FC = () => {
         try {
           const { data, error } = await supabase
             .from('vgvina_financial_transactions')
-            .select('id, code, type, transaction_date, amount, partner_id')
+            .select('id, code, type, transaction_date, amount, partner_id, partner_name')
             .eq('type', 'INCOME');
           if (error) {
             console.error('Error fetching financial transactions:', error);
@@ -120,7 +125,8 @@ export const DebtWarning: React.FC = () => {
             type: t.type,
             transaction_date: t.transaction_date,
             amount: Number(t.amount) || 0,
-            partnerId: t.partner_id ? String(t.partner_id) : undefined
+            partnerId: t.partner_id ? String(t.partner_id) : undefined,
+            partner_name: t.partner_name || undefined
           }));
         } catch (e) {
           console.error('Error fetching txns:', e);
@@ -196,8 +202,15 @@ export const DebtWarning: React.FC = () => {
 
     // Process each partner ONCE in O(1) per lookup
     partners.forEach(partner => {
-      const dueDays = Number(partner.payment_due_days) || 0;
-      if (dueDays <= 0) return; // Skip partners without a set debt term (0 days)
+      let dueDays = Number(partner.payment_due_days) || 0;
+      if (dueDays <= 0 && partner.payment_term) {
+        const parsed = parseInt(String(partner.payment_term).replace(/\D/g, ''), 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          dueDays = parsed;
+        }
+      }
+
+      if (dueDays <= 0) return; // Skip partners without any set debt term (0 days)
 
       const pId = String(partner.id);
       const pName = partner.name ? partner.name.trim().toLowerCase() : '';
@@ -387,7 +400,14 @@ export const DebtWarning: React.FC = () => {
     if (!partners) return [];
     let list = partners;
     if (!showZeroDaysPartners) {
-      list = list.filter(p => (Number(p.payment_due_days) || 0) > 0);
+      list = list.filter(p => {
+        let days = Number(p.payment_due_days) || 0;
+        if (days <= 0 && p.payment_term) {
+          const parsed = parseInt(String(p.payment_term).replace(/\D/g, ''), 10);
+          if (!isNaN(parsed) && parsed > 0) days = parsed;
+        }
+        return days > 0;
+      });
     }
     if (!searchTerm) return list;
     const term = searchTerm.toLowerCase();
