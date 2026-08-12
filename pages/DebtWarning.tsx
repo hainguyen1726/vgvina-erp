@@ -88,7 +88,7 @@ export const DebtWarning: React.FC = () => {
         try {
           const { data, error } = await supabase
             .from('vgvina_sales_orders')
-            .select('id, code, order_date, total_amount, amount_paid, status, facility_id, customer_id, customer_name, notes')
+            .select('id, code, order_date, total_amount, amount_paid, status, facility_id, customer_id, customer_name, notes, facility:facility_id(name)')
             .in('status', ['COMPLETED', 'DELIVERED'])
             .order('order_date', { ascending: false });
 
@@ -100,7 +100,7 @@ export const DebtWarning: React.FC = () => {
           return (data || []).map((o: any) => ({
             ...o,
             customer_name: o.customer_name || '',
-            facility_name: '',
+            facility_name: o.facility?.name || '',
             items: []
           }));
         } catch (e) {
@@ -338,7 +338,7 @@ export const DebtWarning: React.FC = () => {
     // Filter by branch
     if (selectedFacilityId && selectedBranch !== 'Tất cả chi nhánh') {
       list = list.filter(item =>
-        item.orders.some(o => o.facilityName === selectedBranch)
+        item.orders.some(o => (o as any).facility_id === selectedFacilityId || o.facilityName === selectedBranch || !o.facilityName)
       );
     }
 
