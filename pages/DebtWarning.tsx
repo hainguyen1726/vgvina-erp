@@ -25,7 +25,7 @@ const formatDate = (dateStr: string) => {
 
 export const DebtWarning: React.FC = () => {
   const { showNotification } = useNotification();
-  const { selectedBranch, selectedFacilityId } = useBranch();
+  const { selectedBranch, selectedFacilityId, currentUser } = useBranch();
 
   // State
   const [activeTab, setActiveTab] = useState<'WARNINGS' | 'SETTINGS'>('WARNINGS');
@@ -88,7 +88,7 @@ export const DebtWarning: React.FC = () => {
         try {
           const { data, error } = await supabase
             .from('vgvina_sales_orders')
-            .select('id, code, order_date, total_amount, amount_paid, status, facility_id, customer_id, customer_name, notes, facility:facility_id(name)')
+            .select('id, code, order_date, total_amount, amount_paid, status, facility_id, customer_id, customer_name, notes')
             .in('status', ['COMPLETED', 'DELIVERED'])
             .order('order_date', { ascending: false });
 
@@ -100,7 +100,7 @@ export const DebtWarning: React.FC = () => {
           return (data || []).map((o: any) => ({
             ...o,
             customer_name: o.customer_name || '',
-            facility_name: o.facility?.name || '',
+            facility_name: '',
             items: []
           }));
         } catch (e) {
@@ -113,7 +113,7 @@ export const DebtWarning: React.FC = () => {
         try {
           const { data, error } = await supabase
             .from('vgvina_financial_transactions')
-            .select('id, code, type, transaction_date, amount, partner_id, partner_name')
+            .select('id, code, type, transaction_date, amount, partner_id')
             .eq('type', 'INCOME');
           if (error) {
             console.error('Error fetching financial transactions:', error);
@@ -125,8 +125,7 @@ export const DebtWarning: React.FC = () => {
             type: t.type,
             transaction_date: t.transaction_date,
             amount: Number(t.amount) || 0,
-            partnerId: t.partner_id ? String(t.partner_id) : undefined,
-            partner_name: t.partner_name || undefined
+            partnerId: t.partner_id ? String(t.partner_id) : undefined
           }));
         } catch (e) {
           console.error('Error fetching txns:', e);
@@ -294,6 +293,7 @@ export const DebtWarning: React.FC = () => {
             remainingAmount: item.remaining,
             daysOverdue: daysOverdue,
             status: order.status,
+            facilityId: order.facility_id,
             facilityName: order.facility_name,
             items: order.items || [],
             notes: order.notes
@@ -331,14 +331,23 @@ export const DebtWarning: React.FC = () => {
     return warnings.sort((a, b) => b.maxDaysOverdue - a.maxDaysOverdue);
   }, [partners, salesOrders, transactions]);
 
-  // 2. Filter warnings list
+  // 2. Filter warnings list with strict Branch & Permission Control
   const filteredWarnings = useMemo(() => {
     let list = debtWarningList;
 
-    // Filter by branch
+    // A. Filter by selected branch dropdown
     if (selectedFacilityId && selectedBranch !== 'Tất cả chi nhánh') {
       list = list.filter(item =>
-        item.orders.some(o => (o as any).facility_id === selectedFacilityId || o.facilityName === selectedBranch || !o.facilityName)
+        item.orders.some(o => o.facilityId === selectedFacilityId || (o as any).facility_id === selectedFacilityId)
+      );
+    }
+
+    // B. Strict Branch Permission Gate: Non-admin users can ONLY see data for assigned facilities
+    const isAdmin = currentUser?.is_admin || ['Admin', 'admin', 'Quản trị viên', 'Kế toán HO', 'Ban Lãnh đạo'].includes(currentUser?.role || '');
+    if (!isAdmin && currentUser?.assigned_facilities && currentUser.assigned_facilities.length > 0) {
+      const allowedFacilityIds = new Set(currentUser.assigned_facilities.map(f => f.id));
+      list = list.filter(item =>
+        item.orders.some(o => allowedFacilityIds.has(o.facilityId || (o as any).facility_id))
       );
     }
 

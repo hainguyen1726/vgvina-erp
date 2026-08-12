@@ -302,6 +302,7 @@ export interface OverdueOrderInfo {
   remainingAmount: number;
   daysOverdue: number;
   status: OrderStatus;
+  facilityId?: string;
   facilityName: string;
   items: OrderItem[];
   notes?: string;
