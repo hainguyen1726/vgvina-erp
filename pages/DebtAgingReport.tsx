@@ -217,12 +217,49 @@ const DebtAgingReport: React.FC = () => {
   }, [isMobile]);
 
   // Hàm tính số ngày chênh lệch giữa 2 ngày
-  const getDaysDifference = (orderDateStr: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  // Cập nhật ngày mốc tính tuổi nợ (cutoffDate): là ngày cuối cùng của kỳ lọc được chọn, hoặc ngày hiện tại
+  const cutoffDate = useMemo(() => {
+    if (!timeFilter || timeFilter.filter === 'All time') return new Date();
+
+    const now = new Date();
+    switch (timeFilter.filter) {
+      case 'Hôm nay':
+        return now;
+      case 'Hôm qua': {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        return yesterday;
+      }
+      case 'Tuần này':
+        return now;
+      case 'Tháng này':
+        return now;
+      case 'Tháng trước':
+        return new Date(now.getFullYear(), now.getMonth(), 0);
+      case 'Quý này':
+        return now;
+      case 'Quý trước': {
+        const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
+        return new Date(now.getFullYear(), (lastQuarter + 1) * 3, 0);
+      }
+      case 'Năm nay':
+        return now;
+      case 'Năm trước':
+        return new Date(now.getFullYear() - 1, 11, 31);
+      case 'Tùy chọn':
+        return timeFilter.dates?.to ? new Date(timeFilter.dates.to) : now;
+      default:
+        return now;
+    }
+  }, [timeFilter]);
+
+  // Hàm tính số ngày chênh lệch từ ngày đơn hàng đến ngày mốc cutoffDate
+  const getDaysDifference = (orderDateStr: string, refDate: Date) => {
+    const target = new Date(refDate);
+    target.setHours(0, 0, 0, 0);
     const orderDate = new Date(orderDateStr);
     orderDate.setHours(0, 0, 0, 0);
-    const diffTime = today.getTime() - orderDate.getTime();
+    const diffTime = target.getTime() - orderDate.getTime();
     return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
   };
 
@@ -350,7 +387,7 @@ const DebtAgingReport: React.FC = () => {
       if (remainingDebt <= 0) return;
 
       const dueDays = Number(customer.payment_due_days) || 0;
-      const daysDiff = getDaysDifference(order.order_date);
+      const daysDiff = getDaysDifference(order.order_date, cutoffDate);
       const overdueDays = daysDiff - dueDays;
 
       // Tìm tên Sale phụ trách
@@ -424,7 +461,7 @@ const DebtAgingReport: React.FC = () => {
     });
 
     return Object.values(partnersMap);
-  }, [filteredByTimeSalesOrders, users, isManager, currentUser]);
+  }, [filteredByTimeSalesOrders, users, isManager, currentUser, cutoffDate]);
 
   // Bộ lọc dữ liệu Khách hàng
   const filteredCustomerDebts = useMemo(() => {
