@@ -2,32 +2,29 @@ import React, { useState, useMemo, useEffect } from 'react';
 import FilterBar from '../components/ui/FilterBar';
 import SummaryCard from '../components/ui/SummaryCard';
 import Pagination from '../components/ui/Pagination';
-import { Page, OrderStatus } from '../types';
+import { Page, DebtStatus } from '../types';
 import { DoiTacIcon, ThuChiIcon, ExportIcon, ArrowUpIcon, ChevronDownIcon, ArrowsUpDownIcon, CongNoIcon } from '../components/icons/Icons';
 import { useNotification } from '../contexts/NotificationContext';
 import { useBranch } from '../contexts/BranchContext';
 import { excelUtils } from '../src/utils/excelUtils';
-import { supabase } from '../src/supabaseClient';
+import { debtService } from '../src/services/debtService';
 import { userService } from '../src/services/userService';
 
 const allColumns = [
   { key: 'name', label: 'Khách hàng' },
   { key: 'sale_name', label: 'Sale phụ trách' },
-  { key: 'totalAmount', label: 'Tổng tiền đơn' },
-  { key: 'amountPaid', label: 'Đã thanh toán' },
   { key: 'remainingDebt', label: 'Còn nợ' },
-  { key: 'orderCount', label: 'Số đơn nợ' },
+  { key: 'orderCount', label: 'Số khoản nợ' },
   { key: 'facility_name', label: 'Chi nhánh' },
 ];
 
-// Modal chi tiết đơn hàng nợ của khách hàng
-interface OrderDebtDetail {
+// Modal chi tiết nợ của khách hàng
+interface CustomerDebtItemDetail {
   id: string;
   code: string;
   order_date: string;
-  total_amount: number;
-  amount_paid: number;
   remaining_debt: number;
+  status: string;
 }
 
 const CustomerDebtDetailModal = ({ 
@@ -39,7 +36,7 @@ const CustomerDebtDetailModal = ({
   isOpen: boolean; 
   onClose: () => void; 
   partnerName: string; 
-  orders: OrderDebtDetail[] 
+  orders: CustomerDebtItemDetail[] 
 }) => {
   if (!isOpen) return null;
 
@@ -47,32 +44,45 @@ const CustomerDebtDetailModal = ({
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
   };
 
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
+    try {
+      return new Date(dateStr).toLocaleDateString('vi-VN');
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center border-b p-4">
-          <h3 className="text-lg font-bold text-gray-800">Chi tiết hóa đơn còn nợ - {partnerName}</h3>
+          <h3 className="text-lg font-bold text-gray-800">Chi tiết khoản nợ - {partnerName}</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">&times;</button>
         </div>
         <div className="p-6 overflow-y-auto flex-1 space-y-4">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50 text-xs text-gray-700 uppercase font-semibold">
               <tr>
-                <th className="px-4 py-3 text-left">Mã đơn hàng</th>
-                <th className="px-4 py-3 text-left">Ngày đơn</th>
-                <th className="px-4 py-3 text-right">Tổng giá trị</th>
-                <th className="px-4 py-3 text-right">Đã thanh toán</th>
-                <th className="px-4 py-3 text-right">Còn nợ</th>
+                <th className="px-4 py-3 text-left">Mã / Chứng từ</th>
+                <th className="px-4 py-3 text-left">Ngày phát sinh</th>
+                <th className="px-4 py-3 text-right">Số tiền nợ</th>
+                <th className="px-4 py-3 text-center">Trạng thái</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {orders.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+              {orders.map((order, idx) => (
+                <tr key={order.id || idx} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-semibold text-blue-600">{order.code}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{new Date(order.order_date).toLocaleDateString('vi-VN')}</td>
-                  <td className="px-4 py-3 text-right font-medium">{formatCurrency(order.total_amount)}</td>
-                  <td className="px-4 py-3 text-right text-green-600">{formatCurrency(order.amount_paid)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{formatDate(order.order_date)}</td>
                   <td className="px-4 py-3 text-right font-bold text-red-600">{formatCurrency(order.remaining_debt)}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      order.status === DebtStatus.PARTIALLY_PAID ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {order.status === DebtStatus.PARTIALLY_PAID ? 'Thanh toán 1 phần' : 'Chưa thanh toán'}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -97,14 +107,13 @@ const DebtAgingReport: React.FC = () => {
   }, [currentUser]);
 
   // State quản lý dữ liệu
-  const [salesOrders, setSalesOrders] = useState<any[]>([]);
+  const [debts, setDebts] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // State bộ lọc và UI
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSaleId, setSelectedSaleId] = useState('');
-  const [selectedBranchId, setSelectedBranchId] = useState('');
   const [activeTab, setActiveTab] = useState<'CUSTOMER' | 'SALE'>('CUSTOMER');
   const [timeFilter, setTimeFilter] = useState<{ filter: string; dates?: { from: Date; to: Date } }>({ filter: 'All time' });
   
@@ -113,65 +122,37 @@ const DebtAgingReport: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(isMobile ? 10 : 30);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>({ key: 'remainingDebt', direction: 'descending' });
-  const [visibleColumns] = useState(["name", "sale_name", "totalAmount", "amountPaid", "remainingDebt", "orderCount", "facility_name"]);
+  const [visibleColumns] = useState(["name", "sale_name", "remainingDebt", "orderCount", "facility_name"]);
 
   // Chi tiết hóa đơn nợ của 1 khách hàng đang chọn
-  const [selectedPartnerDetail, setSelectedPartnerDetail] = useState<{ name: string; orders: OrderDebtDetail[] } | null>(null);
+  const [selectedPartnerDetail, setSelectedPartnerDetail] = useState<{ name: string; orders: CustomerDebtItemDetail[] } | null>(null);
 
   // Load danh sách users
   useEffect(() => {
     userService.getUsers().then(setUsers).catch(console.error);
   }, []);
 
-  // Fetch sales orders có nợ
+  // Fetch dữ liệu nợ từ vgvina_debt_transactions
   const fetchDebtData = async () => {
     try {
       setLoading(true);
-      // Query sales orders nợ
-      // Chỉ lấy trạng thái hợp lệ COMPLETED hoặc DELIVERED
-      let ordersQuery = supabase
-        .from('vgvina_sales_orders')
-        .select(`
-          id,
-          code,
-          order_date,
-          total_amount,
-          amount_paid,
-          status,
-          facility_id,
-          vgvina_facilities(name),
-          customer:customer_id(
-            id,
-            name,
-            payment_due_days,
-            payment_term,
-            assigned_user_id
-          )
-        `)
-        .in('status', [OrderStatus.COMPLETED, OrderStatus.DELIVERED]);
+      const isAdmin = currentUser?.is_admin === true ||
+        ['admin', 'Admin', 'Quản trị viên', 'Kế toán HO', 'Ban Lãnh đạo', 'Quản lý Chi nhánh'].includes(currentUser?.role || '');
 
-      const currentFacilityId = selectedFacilityId || selectedBranchId;
-      if (currentFacilityId) {
-        ordersQuery = ordersQuery.eq('facility_id', currentFacilityId);
-      }
+      const facilityFilter = selectedFacilityId === null
+        ? (isAdmin ? undefined : '00000000-0000-0000-0000-000000000000')
+        : selectedFacilityId;
 
-      const { data: ordersData, error: ordersError } = await ordersQuery;
-      if (ordersError) throw ordersError;
+      const employeeIdFilter = !isAdmin ? currentUser?.id : undefined;
 
-      // Lọc nghiêm ngặt ở Client:
-      // KHÔNG LẤY: đơn hủy (CANCELLED/CANCELED), đơn nháp (DRAFT/PENDING), đơn đã thanh toán hết (total <= paid)
-      const debtOrders = (ordersData || []).filter((o: any) => {
-        const statusStr = String(o.status || '').toUpperCase();
-        if (statusStr === 'CANCELLED' || statusStr === 'CANCELED' || statusStr === 'DRAFT' || statusStr === 'PENDING') {
-          return false;
-        }
+      const data = await debtService.getDebts(facilityFilter || undefined, employeeIdFilter);
 
-        const total = Number(o.total_amount) || 0;
-        const paid = Number(o.amount_paid) || 0;
-        return total > paid;
-      });
+      // CHỈ LẤY: Công nợ Phải thu (RECEIVABLE) chưa thanh toán hết (status != PAID) có số tiền > 0
+      const receivableDebts = (data || []).filter(d => 
+        d.type === 'RECEIVABLE' && d.status !== DebtStatus.PAID && Number(d.amount) > 0
+      );
 
-      setSalesOrders(debtOrders);
+      setDebts(receivableDebts);
     } catch (err) {
       console.error('Lỗi khi tải dữ liệu báo cáo công nợ:', err);
       showNotification('Không thể tải dữ liệu báo cáo công nợ', 'error');
@@ -182,7 +163,7 @@ const DebtAgingReport: React.FC = () => {
 
   useEffect(() => {
     fetchDebtData();
-  }, [selectedFacilityId, selectedBranchId]);
+  }, [selectedFacilityId]);
 
   // Xử lý thay đổi kích thước màn hình
   useEffect(() => {
@@ -204,9 +185,9 @@ const DebtAgingReport: React.FC = () => {
     setCurrentPage(1);
   };
 
-  // Lọc danh sách đơn hàng nợ theo khoảng thời gian được chọn
-  const filteredByTimeSalesOrders = useMemo(() => {
-    if (!timeFilter || timeFilter.filter === 'All time') return salesOrders;
+  // Lọc danh sách khoản nợ theo khoảng thời gian được chọn
+  const filteredByTimeDebts = useMemo(() => {
+    if (!timeFilter || timeFilter.filter === 'All time') return debts;
 
     const now = new Date();
     let fromDate: Date | null = null;
@@ -274,99 +255,80 @@ const DebtAgingReport: React.FC = () => {
         }
         break;
       default:
-        return salesOrders;
+        return debts;
     }
 
-    return salesOrders.filter(order => {
-      if (!order.order_date) return false;
-      const orderDate = new Date(order.order_date);
-      if (fromDate && orderDate < fromDate) return false;
-      if (toDate && orderDate > toDate) return false;
+    return debts.filter(debt => {
+      const dateStr = debt.due_date || debt.created_at;
+      if (!dateStr) return false;
+      const debtDate = new Date(dateStr);
+      if (fromDate && debtDate < fromDate) return false;
+      if (toDate && debtDate > toDate) return false;
       return true;
     });
-  }, [salesOrders, timeFilter]);
+  }, [debts, timeFilter]);
 
   // Tính toán và cấu trúc lại dữ liệu nợ theo Khách hàng
   const customerDebts = useMemo(() => {
     const partnersMap: Record<string, {
       id: string;
       name: string;
-      assigned_user_id: string;
       sale_name: string;
       facility_name: string;
-      totalAmount: number;
-      amountPaid: number;
       remainingDebt: number;
       orderCount: number;
-      orders: OrderDebtDetail[];
+      orders: CustomerDebtItemDetail[];
     }> = {};
 
-    filteredByTimeSalesOrders.forEach(order => {
-      const customer = order.customer;
-      if (!customer) return;
-
-      // Nếu không phải quản lý/admin, chỉ xem khách hàng được gán cho chính Sale đó
-      if (!isManager && currentUser) {
-        if (String(customer.assigned_user_id) !== String(currentUser.id)) {
-          return;
-        }
-      }
-
-      const customerId = customer.id;
-      const totalAmount = Number(order.total_amount) || 0;
-      const amountPaid = Number(order.amount_paid) || 0;
-      const remainingDebt = totalAmount - amountPaid;
-
+    filteredByTimeDebts.forEach(debt => {
+      const partnerName = debt.partner_name || 'Khách hàng chưa phân loại';
+      const remainingDebt = Number(debt.amount) || 0;
       if (remainingDebt <= 0) return;
 
-      // Tìm tên Sale phụ trách
-      const saleUser = users.find(u => String(u.id) === String(customer.assigned_user_id));
-      const saleName = saleUser ? saleUser.full_name : 'Chưa gán';
+      const saleName = (debt.assigned_user_names && debt.assigned_user_names.length > 0)
+        ? debt.assigned_user_names.join(', ')
+        : 'Chưa gán';
 
-      const orderDebt: OrderDebtDetail = {
-        id: order.id,
-        code: order.code,
-        order_date: order.order_date,
-        total_amount: totalAmount,
-        amount_paid: amountPaid,
+      const debtItem: CustomerDebtItemDetail = {
+        id: debt.id,
+        code: (debt as any).code || debt.id.substring(0, 8).toUpperCase(),
+        order_date: debt.due_date || debt.created_at,
         remaining_debt: remainingDebt,
+        status: debt.status,
       };
 
-      if (!partnersMap[customerId]) {
-        partnersMap[customerId] = {
-          id: customerId,
-          name: customer.name,
-          assigned_user_id: customer.assigned_user_id ? String(customer.assigned_user_id) : '',
+      if (!partnersMap[partnerName]) {
+        partnersMap[partnerName] = {
+          id: debt.partner_id || debt.id,
+          name: partnerName,
           sale_name: saleName,
-          facility_name: order.vgvina_facilities?.name || 'Chưa gán',
-          totalAmount: 0,
-          amountPaid: 0,
+          facility_name: debt.facility_name || 'Chưa gán',
           remainingDebt: 0,
           orderCount: 0,
           orders: []
         };
       }
 
-      const item = partnersMap[customerId];
-      item.totalAmount += totalAmount;
-      item.amountPaid += amountPaid;
+      const item = partnersMap[partnerName];
       item.remainingDebt += remainingDebt;
       item.orderCount += 1;
-      item.orders.push(orderDebt);
+      item.orders.push(debtItem);
     });
 
     return Object.values(partnersMap);
-  }, [filteredByTimeSalesOrders, users, isManager, currentUser]);
+  }, [filteredByTimeDebts]);
 
   // Bộ lọc dữ liệu Khách hàng
   const filteredCustomerDebts = useMemo(() => {
     let result = customerDebts.filter(item => {
-      // 1. Lọc theo search term
+      // Lọc theo search term
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             item.sale_name.toLowerCase().includes(searchTerm.toLowerCase());
       
-      // 2. Lọc theo Sale phụ trách
-      const matchesSale = !selectedSaleId || item.assigned_user_id === selectedSaleId;
+      // Lọc theo Sale phụ trách
+      const matchesSale = !selectedSaleId || item.sale_name.includes(
+        users.find(u => u.id === selectedSaleId)?.full_name || ''
+      );
 
       return matchesSearch && matchesSale;
     });
@@ -386,14 +348,12 @@ const DebtAgingReport: React.FC = () => {
     }
 
     return result;
-  }, [customerDebts, searchTerm, selectedSaleId, sortConfig]);
+  }, [customerDebts, searchTerm, selectedSaleId, sortConfig, users]);
 
   // Tổng hợp dữ liệu nợ theo nhân viên Sale
   const saleDebtsSummary = useMemo(() => {
     const saleMap: Record<string, {
       sale_name: string;
-      totalAmount: number;
-      amountPaid: number;
       remainingDebt: number;
       customerCount: number;
       orderCount: number;
@@ -404,8 +364,6 @@ const DebtAgingReport: React.FC = () => {
       if (!saleMap[saleName]) {
         saleMap[saleName] = {
           sale_name: saleName,
-          totalAmount: 0,
-          amountPaid: 0,
           remainingDebt: 0,
           customerCount: 0,
           orderCount: 0,
@@ -413,8 +371,6 @@ const DebtAgingReport: React.FC = () => {
       }
 
       const item = saleMap[saleName];
-      item.totalAmount += cust.totalAmount;
-      item.amountPaid += cust.amountPaid;
       item.remainingDebt += cust.remainingDebt;
       item.customerCount += 1;
       item.orderCount += cust.orderCount;
@@ -437,12 +393,10 @@ const DebtAgingReport: React.FC = () => {
   // Tổng số liệu báo cáo
   const totals = useMemo(() => {
     return filteredCustomerDebts.reduce((acc, curr) => ({
-      totalAmount: acc.totalAmount + curr.totalAmount,
-      amountPaid: acc.amountPaid + curr.amountPaid,
       remainingDebt: acc.remainingDebt + curr.remainingDebt,
       customerCount: acc.customerCount + 1,
       orderCount: acc.orderCount + curr.orderCount,
-    }), { totalAmount: 0, amountPaid: 0, remainingDebt: 0, customerCount: 0, orderCount: 0 });
+    }), { remainingDebt: 0, customerCount: 0, orderCount: 0 });
   }, [filteredCustomerDebts]);
 
   // Phân trang cho danh sách Khách hàng
@@ -463,10 +417,8 @@ const DebtAgingReport: React.FC = () => {
       'Mã khách hàng': item.id.substring(0, 8).toUpperCase(),
       'Tên khách hàng': item.name,
       'Sale phụ trách': item.sale_name,
-      'Tổng tiền đơn': item.totalAmount,
-      'Đã thanh toán': item.amountPaid,
       'Còn nợ': item.remainingDebt,
-      'Số đơn nợ': item.orderCount,
+      'Số khoản nợ': item.orderCount,
       'Chi nhánh': item.facility_name
     }));
 
@@ -474,10 +426,8 @@ const DebtAgingReport: React.FC = () => {
       'STT': index + 1,
       'Nhân viên Sale': item.sale_name,
       'Số khách hàng nợ': item.customerCount,
-      'Số đơn nợ': item.orderCount,
-      'Tổng tiền đơn': item.totalAmount,
-      'Đã thanh toán': item.amountPaid,
-      'Còn nợ': item.remainingDebt
+      'Số khoản nợ': item.orderCount,
+      'Còn nợ quản lý': item.remainingDebt
     }));
 
     excelUtils.exportDebtAgingReport(
@@ -512,22 +462,22 @@ const DebtAgingReport: React.FC = () => {
           colorClass="bg-red-100 text-red-600 font-bold" 
         />
         <SummaryCard 
-          title="Tổng tiền đơn hàng" 
-          value={formatCurrency(totals.totalAmount)} 
-          icon={<CongNoIcon />} 
-          colorClass="bg-blue-100 text-blue-600 font-semibold" 
-        />
-        <SummaryCard 
-          title="Đã thanh toán" 
-          value={formatCurrency(totals.amountPaid)} 
-          icon={<DoiTacIcon />} 
-          colorClass="bg-green-100 text-green-600 font-semibold" 
-        />
-        <SummaryCard 
           title="Khách hàng còn nợ" 
-          value={`${totals.customerCount} Khách (${totals.orderCount} đơn)`} 
+          value={`${totals.customerCount} Khách hàng`} 
           icon={<DoiTacIcon />} 
+          colorClass="bg-blue-100 text-blue-600 font-bold" 
+        />
+        <SummaryCard 
+          title="Số khoản nợ thực tế" 
+          value={`${totals.orderCount} Khoản nợ`} 
+          icon={<CongNoIcon />} 
           colorClass="bg-amber-100 text-amber-700 font-bold" 
+        />
+        <SummaryCard 
+          title="Chi nhánh đang xem" 
+          value={selectedBranch || 'Tất cả chi nhánh'} 
+          icon={<DoiTacIcon />} 
+          colorClass="bg-green-100 text-green-700 font-semibold" 
         />
       </div>
 
@@ -592,7 +542,7 @@ const DebtAgingReport: React.FC = () => {
                 <tr>
                   <th className="px-6 py-3 text-left">STT</th>
                   {allColumns.filter(c => visibleColumns.includes(c.key)).map(col => {
-                    const isRight = ['totalAmount', 'amountPaid', 'remainingDebt', 'orderCount'].includes(col.key);
+                    const isRight = ['remainingDebt', 'orderCount'].includes(col.key);
                     return (
                       <th 
                         key={col.key} 
@@ -645,16 +595,6 @@ const DebtAgingReport: React.FC = () => {
                           </span>
                         </td>
                       )}
-                      {visibleColumns.includes('totalAmount') && (
-                        <td className="px-6 py-4 text-right font-medium text-gray-700 tabular-nums">
-                          {formatCurrency(item.totalAmount)}
-                        </td>
-                      )}
-                      {visibleColumns.includes('amountPaid') && (
-                        <td className="px-6 py-4 text-right text-green-600 font-medium tabular-nums">
-                          {formatCurrency(item.amountPaid)}
-                        </td>
-                      )}
                       {visibleColumns.includes('remainingDebt') && (
                         <td className="px-6 py-4 text-right font-bold text-red-600 tabular-nums">
                           {formatCurrency(item.remainingDebt)}
@@ -662,7 +602,7 @@ const DebtAgingReport: React.FC = () => {
                       )}
                       {visibleColumns.includes('orderCount') && (
                         <td className="px-6 py-4 text-right font-semibold text-gray-800">
-                          {item.orderCount} đơn
+                          {item.orderCount} khoản
                         </td>
                       )}
                       {visibleColumns.includes('facility_name') && (
@@ -681,9 +621,7 @@ const DebtAgingReport: React.FC = () => {
           <div className="px-6 py-4 border-t border-gray-100 flex justify-between items-center bg-gray-50 font-bold text-sm">
             <div className="text-gray-600">TỔNG CỘNG ({filteredCustomerDebts.length} khách nợ):</div>
             <div className="flex gap-4 sm:gap-6 flex-wrap justify-end">
-              <div className="text-right text-gray-700">Tổng đơn: {formatCurrency(totals.totalAmount)}</div>
-              <div className="text-right text-green-600">Đã thanh toán: {formatCurrency(totals.amountPaid)}</div>
-              <div className="text-right text-red-600 font-extrabold text-base">Còn nợ: {formatCurrency(totals.remainingDebt)}</div>
+              <div className="text-right text-red-600 font-extrabold text-base">Tổng nợ: {formatCurrency(totals.remainingDebt)}</div>
             </div>
           </div>
 
@@ -709,20 +647,18 @@ const DebtAgingReport: React.FC = () => {
                   <th className="px-6 py-3 text-left">STT</th>
                   <th className="px-6 py-3 text-left">Nhân viên Sale</th>
                   <th className="px-6 py-3 text-center">Số khách nợ</th>
-                  <th className="px-6 py-3 text-center">Số đơn nợ</th>
-                  <th className="px-6 py-3 text-right">Tổng tiền đơn</th>
-                  <th className="px-6 py-3 text-right text-green-600">Đã thanh toán</th>
-                  <th className="px-6 py-3 text-right text-red-600">Còn nợ</th>
+                  <th className="px-6 py-3 text-center">Số khoản nợ</th>
+                  <th className="px-6 py-3 text-right text-red-600">Tổng nợ quản lý</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500 font-medium">Đang tải dữ liệu báo cáo...</td>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500 font-medium">Đang tải dữ liệu báo cáo...</td>
                   </tr>
                 ) : filteredSaleDebts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500 font-medium">Không có dữ liệu nợ theo Sale</td>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500 font-medium">Không có dữ liệu nợ theo Sale</td>
                   </tr>
                 ) : (
                   filteredSaleDebts.map((item, idx) => (
@@ -730,9 +666,7 @@ const DebtAgingReport: React.FC = () => {
                       <td className="px-6 py-4 text-left font-medium text-gray-500">{idx + 1}</td>
                       <td className="px-6 py-4 text-left font-semibold text-gray-800">{item.sale_name}</td>
                       <td className="px-6 py-4 text-center font-medium">{item.customerCount} KH</td>
-                      <td className="px-6 py-4 text-center font-medium">{item.orderCount} đơn</td>
-                      <td className="px-6 py-4 text-right font-medium text-gray-700 tabular-nums">{formatCurrency(item.totalAmount)}</td>
-                      <td className="px-6 py-4 text-right font-semibold text-green-600 tabular-nums">{formatCurrency(item.amountPaid)}</td>
+                      <td className="px-6 py-4 text-center font-medium">{item.orderCount} khoản</td>
                       <td className="px-6 py-4 text-right font-bold text-red-600 tabular-nums">{formatCurrency(item.remainingDebt)}</td>
                     </tr>
                   ))
@@ -744,9 +678,7 @@ const DebtAgingReport: React.FC = () => {
           <div className="px-6 py-4 border-t border-gray-100 flex justify-between items-center bg-gray-50 font-bold text-sm">
             <div className="text-gray-600">TỔNG CỘNG:</div>
             <div className="flex gap-4 sm:gap-6 flex-wrap justify-end">
-              <div className="text-right text-gray-700">Tổng đơn: {formatCurrency(totals.totalAmount)}</div>
-              <div className="text-right text-green-600">Đã thanh toán: {formatCurrency(totals.amountPaid)}</div>
-              <div className="text-right text-red-600 text-base">Còn nợ: {formatCurrency(totals.remainingDebt)}</div>
+              <div className="text-right text-red-600 text-base">Tổng nợ: {formatCurrency(totals.remainingDebt)}</div>
             </div>
           </div>
         </div>
