@@ -129,6 +129,7 @@ const DebtAgingReport: React.FC = () => {
   const [selectedBranchId, setSelectedBranchId] = useState('');
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [activeTab, setActiveTab] = useState<'CUSTOMER' | 'SALE'>('CUSTOMER');
+  const [timeFilter, setTimeFilter] = useState<{ filter: string; dates?: { from: Date; to: Date } }>({ filter: 'All time' });
   
   // Phân trang
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -225,6 +226,93 @@ const DebtAgingReport: React.FC = () => {
     return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
   };
 
+  // Xử lý sự kiện thay đổi bộ lọc thời gian
+  const handleTimeFilterChange = (filter: string, dates?: { from: Date; to: Date }) => {
+    setTimeFilter({ filter, dates });
+  };
+
+  // Lọc danh sách đơn hàng nợ theo khoảng thời gian được chọn
+  const filteredByTimeSalesOrders = useMemo(() => {
+    if (!timeFilter || timeFilter.filter === 'All time') return salesOrders;
+
+    const now = new Date();
+    let fromDate: Date | null = null;
+    let toDate: Date | null = new Date();
+    toDate.setHours(23, 59, 59, 999);
+
+    switch (timeFilter.filter) {
+      case 'Hôm nay':
+        fromDate = new Date();
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      case 'Hôm qua':
+        fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - 1);
+        fromDate.setHours(0, 0, 0, 0);
+        toDate = new Date();
+        toDate.setDate(toDate.getDate() - 1);
+        toDate.setHours(23, 59, 59, 999);
+        break;
+      case 'Tuần này': {
+        const day = now.getDay();
+        const diff = now.getDate() - (day === 0 ? 6 : day - 1);
+        fromDate = new Date(now);
+        fromDate.setDate(diff);
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      }
+      case 'Tháng này':
+        fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      case 'Tháng trước':
+        fromDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        fromDate.setHours(0, 0, 0, 0);
+        toDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        break;
+      case 'Quý này': {
+        const quarter = Math.floor(now.getMonth() / 3);
+        fromDate = new Date(now.getFullYear(), quarter * 3, 1);
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      }
+      case 'Quý trước': {
+        const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
+        fromDate = new Date(now.getFullYear(), lastQuarter * 3, 1);
+        fromDate.setHours(0, 0, 0, 0);
+        toDate = new Date(now.getFullYear(), (lastQuarter + 1) * 3, 0, 23, 59, 59, 999);
+        break;
+      }
+      case 'Năm nay':
+        fromDate = new Date(now.getFullYear(), 0, 1);
+        fromDate.setHours(0, 0, 0, 0);
+        break;
+      case 'Năm trước':
+        fromDate = new Date(now.getFullYear() - 1, 0, 1);
+        fromDate.setHours(0, 0, 0, 0);
+        toDate = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+        break;
+      case 'Tùy chọn':
+        if (timeFilter.dates) {
+          fromDate = new Date(timeFilter.dates.from);
+          fromDate.setHours(0, 0, 0, 0);
+          toDate = new Date(timeFilter.dates.to);
+          toDate.setHours(23, 59, 59, 999);
+        }
+        break;
+      default:
+        return salesOrders;
+    }
+
+    return salesOrders.filter(order => {
+      if (!order.order_date) return false;
+      const orderDate = new Date(order.order_date);
+      if (fromDate && orderDate < fromDate) return false;
+      if (toDate && orderDate > toDate) return false;
+      return true;
+    });
+  }, [salesOrders, timeFilter]);
+
   // Tính toán và cấu trúc lại dữ liệu nợ theo Khách hàng
   const customerDebts = useMemo(() => {
     const partnersMap: Record<string, {
@@ -243,7 +331,7 @@ const DebtAgingReport: React.FC = () => {
       orders: OrderDebtDetail[];
     }> = {};
 
-    salesOrders.forEach(order => {
+    filteredByTimeSalesOrders.forEach(order => {
       const customer = order.customer;
       if (!customer) return;
 
@@ -336,7 +424,7 @@ const DebtAgingReport: React.FC = () => {
     });
 
     return Object.values(partnersMap);
-  }, [salesOrders, users]);
+  }, [filteredByTimeSalesOrders, users, isManager, currentUser]);
 
   // Bộ lọc dữ liệu Khách hàng
   const filteredCustomerDebts = useMemo(() => {
@@ -496,9 +584,10 @@ const DebtAgingReport: React.FC = () => {
     <div className="flex flex-col h-full space-y-4">
       <FilterBar
         onSearch={setSearchTerm}
-        onTimeFilterChange={() => {}}
+        onTimeFilterChange={handleTimeFilterChange}
         pageTitle="Phân tích tuổi nợ công nợ"
         backPath="/bao-cao"
+        initialFilter="All time"
       />
 
       {/* Summary Cards */}
