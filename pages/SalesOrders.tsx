@@ -14,7 +14,7 @@ import { supabase } from '../src/supabaseClient';
 import PrintVoucherTemplate from '../components/print/PrintVoucherTemplate';
 // import { salesOrders as mockSalesOrders, purchaseOrders as mockPurchaseOrders } from '../data/mockData';
 import { DonHangIcon, ThuChiIcon, CongNoIcon, PlusIcon, ExportIcon, EditIcon, DeleteIcon, KhoIcon, ArrowUpIcon, ChevronDownIcon, ArrowsUpDownIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/icons/Icons';
-import { formatDate } from '../src/utils/dateUtils';
+import { formatDate, formatDateToYYYYMMDD } from '../src/utils/dateUtils';
 import { excelUtils } from '../src/utils/excelUtils';
 import { useNotification } from '../contexts/NotificationContext';
 import { useBranch } from '../contexts/BranchContext';
@@ -303,8 +303,8 @@ const ReportInventoryTransactions: React.FC = () => {
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>(() => {
     const now = new Date();
-    const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const from = formatDateToYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 1));
+    const to = formatDateToYYYYMMDD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
     return { from, to };
   });
 
@@ -382,8 +382,8 @@ const ReportInventoryTransactions: React.FC = () => {
 
     if (filter === 'Tùy chọn' && dates) {
       setDateRange({
-        from: dates.from.toISOString().split('T')[0],
-        to: dates.to.toISOString().split('T')[0]
+        from: formatDateToYYYYMMDD(dates.from),
+        to: formatDateToYYYYMMDD(dates.to)
       });
       return;
     }
@@ -394,31 +394,44 @@ const ReportInventoryTransactions: React.FC = () => {
 
     switch (filter) {
       case 'Hôm nay':
-        from = to = now.toISOString().split('T')[0];
+        from = to = formatDateToYYYYMMDD(now);
         break;
       case 'Hôm qua':
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        from = to = yesterday.toISOString().split('T')[0];
+        from = to = formatDateToYYYYMMDD(yesterday);
         break;
       case 'Tuần này':
         const day = now.getDay();
         const diff = now.getDate() - (day === 0 ? 6 : day - 1);
-        from = new Date(now.setDate(diff)).toISOString().split('T')[0];
-        to = new Date().toISOString().split('T')[0];
+        from = formatDateToYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), diff));
+        to = formatDateToYYYYMMDD(now);
         break;
       case 'Tháng này':
-        from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-        to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        from = formatDateToYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 1));
+        to = formatDateToYYYYMMDD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+        break;
+      case 'Tháng trước':
+        from = formatDateToYYYYMMDD(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+        to = formatDateToYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 0));
         break;
       case 'Quý này':
         const quarter = Math.floor(now.getMonth() / 3);
-        from = new Date(now.getFullYear(), quarter * 3, 1).toISOString().split('T')[0];
-        to = new Date(now.getFullYear(), (quarter + 1) * 3, 0).toISOString().split('T')[0];
+        from = formatDateToYYYYMMDD(new Date(now.getFullYear(), quarter * 3, 1));
+        to = formatDateToYYYYMMDD(new Date(now.getFullYear(), (quarter + 1) * 3, 0));
+        break;
+      case 'Quý trước':
+        const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
+        from = formatDateToYYYYMMDD(new Date(now.getFullYear(), lastQuarter * 3, 1));
+        to = formatDateToYYYYMMDD(new Date(now.getFullYear(), (lastQuarter + 1) * 3, 0));
         break;
       case 'Năm nay':
-        from = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
-        to = new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0];
+        from = formatDateToYYYYMMDD(new Date(now.getFullYear(), 0, 1));
+        to = formatDateToYYYYMMDD(new Date(now.getFullYear(), 11, 31));
+        break;
+      case 'Năm trước':
+        from = formatDateToYYYYMMDD(new Date(now.getFullYear() - 1, 0, 1));
+        to = formatDateToYYYYMMDD(new Date(now.getFullYear() - 1, 11, 31));
         break;
     }
 

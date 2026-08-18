@@ -9,6 +9,7 @@ import { KhoIcon, PlusIcon, ExportIcon, ArrowUpIcon, ChevronDownIcon, ArrowsUpDo
 import { useNotification } from '../contexts/NotificationContext';
 import { useBranch } from '../contexts/BranchContext';
 import { excelUtils } from '../src/utils/excelUtils';
+import { formatDateToYYYYMMDD } from '../src/utils/dateUtils';
 import ProductMovementModal from '../components/modals/ProductMovementModal';
 
 const allColumns = [
@@ -56,15 +57,19 @@ const ReportInventorySummary: React.FC = () => {
 
     useEffect(() => {
         fetchReport();
-    }, [selectedFacilityId, dateRange]);
+    }, [selectedFacilityId, currentUser, dateRange]);
 
     const fetchReport = async () => {
         try {
             setLoading(true);
-            const data = await productService.getInventorySummaryReport(dateRange.from, dateRange.to, selectedFacilityId || undefined);
+            const data = await productService.getInventorySummaryReport(
+                selectedFacilityId || undefined,
+                dateRange.from,
+                dateRange.to
+            );
             setReportData(data);
         } catch (error) {
-            console.error("Failed to fetch report", error);
+            console.error("Failed to fetch inventory summary report", error);
             showNotification("Không thể tải báo cáo xuất nhập tồn", "error");
         } finally {
             setLoading(false);
@@ -79,8 +84,8 @@ const ReportInventorySummary: React.FC = () => {
 
         if (filter === 'Tùy chọn' && dates) {
             setDateRange({
-                from: dates.from.toISOString().split('T')[0],
-                to: dates.to.toISOString().split('T')[0]
+                from: formatDateToYYYYMMDD(dates.from),
+                to: formatDateToYYYYMMDD(dates.to)
             });
             return;
         }
@@ -91,31 +96,44 @@ const ReportInventorySummary: React.FC = () => {
 
         switch (filter) {
             case 'Hôm nay':
-                from = to = now.toISOString().split('T')[0];
+                from = to = formatDateToYYYYMMDD(now);
                 break;
             case 'Hôm qua':
                 const yesterday = new Date();
                 yesterday.setDate(yesterday.getDate() - 1);
-                from = to = yesterday.toISOString().split('T')[0];
+                from = to = formatDateToYYYYMMDD(yesterday);
                 break;
             case 'Tuần này':
                 const day = now.getDay();
                 const diff = now.getDate() - (day === 0 ? 6 : day - 1);
-                from = new Date(now.setDate(diff)).toISOString().split('T')[0];
-                to = new Date().toISOString().split('T')[0];
+                from = formatDateToYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), diff));
+                to = formatDateToYYYYMMDD(now);
                 break;
             case 'Tháng này':
-                from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-                to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+                from = formatDateToYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 1));
+                to = formatDateToYYYYMMDD(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+                break;
+            case 'Tháng trước':
+                from = formatDateToYYYYMMDD(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+                to = formatDateToYYYYMMDD(new Date(now.getFullYear(), now.getMonth(), 0));
                 break;
             case 'Quý này':
                 const quarter = Math.floor(now.getMonth() / 3);
-                from = new Date(now.getFullYear(), quarter * 3, 1).toISOString().split('T')[0];
-                to = new Date(now.getFullYear(), (quarter + 1) * 3, 0).toISOString().split('T')[0];
+                from = formatDateToYYYYMMDD(new Date(now.getFullYear(), quarter * 3, 1));
+                to = formatDateToYYYYMMDD(new Date(now.getFullYear(), (quarter + 1) * 3, 0));
+                break;
+            case 'Quý trước':
+                const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
+                from = formatDateToYYYYMMDD(new Date(now.getFullYear(), lastQuarter * 3, 1));
+                to = formatDateToYYYYMMDD(new Date(now.getFullYear(), (lastQuarter + 1) * 3, 0));
                 break;
             case 'Năm nay':
-                from = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
-                to = new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0];
+                from = formatDateToYYYYMMDD(new Date(now.getFullYear(), 0, 1));
+                to = formatDateToYYYYMMDD(new Date(now.getFullYear(), 11, 31));
+                break;
+            case 'Năm trước':
+                from = formatDateToYYYYMMDD(new Date(now.getFullYear() - 1, 0, 1));
+                to = formatDateToYYYYMMDD(new Date(now.getFullYear() - 1, 11, 31));
                 break;
         }
 

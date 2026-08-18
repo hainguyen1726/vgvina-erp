@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarIcon, ChevronDownIcon, SearchIcon, ChevronLeftIcon } from '../icons/Icons';
 import { useNotification } from '../../contexts/NotificationContext';
 
+import { formatDateToYYYYMMDD } from '../../src/utils/dateUtils';
+
 interface FilterBarProps {
   onSearch: (query: string) => void;
   onTimeFilterChange: (filter: string, dates?: { from: Date; to: Date }) => void;
@@ -65,29 +67,29 @@ const FilterBar: React.FC<FilterBarProps> = ({ onSearch, onTimeFilterChange, pag
       case 'Tuần này':
         const day = now.getDay();
         const diff = now.getDate() - (day === 0 ? 6 : day - 1);
-        from = new Date(now.setDate(diff)); from.setHours(0, 0, 0, 0);
+        from = new Date(now.getFullYear(), now.getMonth(), diff, 0, 0, 0);
         break;
       case 'Tháng này':
-        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
         break;
       case 'Tháng trước':
-        from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        from = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
         to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
         break;
       case 'Quý này':
         const quarter = Math.floor(now.getMonth() / 3);
-        from = new Date(now.getFullYear(), quarter * 3, 1);
+        from = new Date(now.getFullYear(), quarter * 3, 1, 0, 0, 0);
         break;
       case 'Quý trước':
         const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
-        from = new Date(now.getFullYear(), lastQuarter * 3, 1);
+        from = new Date(now.getFullYear(), lastQuarter * 3, 1, 0, 0, 0);
         to = new Date(now.getFullYear(), (lastQuarter + 1) * 3, 0, 23, 59, 59, 999);
         break;
       case 'Năm nay':
-        from = new Date(now.getFullYear(), 0, 1);
+        from = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
         break;
       case 'Năm trước':
-        from = new Date(now.getFullYear() - 1, 0, 1);
+        from = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0);
         to = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
         break;
       default:
@@ -100,7 +102,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ onSearch, onTimeFilterChange, pag
     setSelectedTimeFilter(option);
     setIsDropdownOpen(false);
     if (option === 'Tùy chọn') {
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatDateToYYYYMMDD(new Date());
       setCustomDates({ from: today, to: today });
       setIsCustomRangeVisible(true);
     } else {
@@ -116,9 +118,11 @@ const FilterBar: React.FC<FilterBarProps> = ({ onSearch, onTimeFilterChange, pag
 
   const handleCustomDateApply = () => {
     if (customDates.from && customDates.to) {
+      const [fromY, fromM, fromD] = customDates.from.split('-').map(Number);
+      const [toY, toM, toD] = customDates.to.split('-').map(Number);
       onTimeFilterChange('Tùy chọn', {
-        from: new Date(customDates.from),
-        to: new Date(customDates.to)
+        from: new Date(fromY, fromM - 1, fromD, 0, 0, 0),
+        to: new Date(toY, toM - 1, toD, 23, 59, 59, 999)
       });
       setIsCustomRangeVisible(false);
     } else {
