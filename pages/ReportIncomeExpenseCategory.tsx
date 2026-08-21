@@ -142,6 +142,22 @@ const ReportIncomeExpenseCategory: React.FC = () => {
 
   const [selectedTimeFilter, setSelectedTimeFilter] = useState('All time');
   const [customDates, setCustomDates] = useState<{ from: string; to: string }>({ from: '', to: '' });
+  const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState(false);
+  const [isCustomRangeVisible, setIsCustomRangeVisible] = useState(false);
+  const [tempCustomDates, setTempCustomDates] = useState<{ from: string; to: string }>({ from: '', to: '' });
+  const timeDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (timeDropdownRef.current && !timeDropdownRef.current.contains(event.target as Node)) {
+        setIsTimeDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleTimeFilterChange = (filter: string, dates?: { from: Date; to: Date }) => {
     setSelectedTimeFilter(filter);
