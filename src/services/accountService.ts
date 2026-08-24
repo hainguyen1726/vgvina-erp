@@ -30,6 +30,21 @@ export const accountService = {
         });
 
         return accountsData.map((item: any) => {
+            if (item.name === 'TK KN' || item.name === 'TK Nợ NCC') {
+                const bal = Number(item.balance || 0);
+                return {
+                    id: item.id,
+                    name: item.name,
+                    balance: bal,
+                    initial_balance: bal,
+                    type: item.type === 'CASH' ? 'Tiền mặt' : (item.type === 'CREDIT' ? 'Thẻ tín dụng' : 'Ngân hàng'),
+                    notes: item.details,
+                    bank_name: item.bank_name,
+                    account_number: item.account_number,
+                    account_holder: item.account_holder
+                };
+            }
+
             const totals = totalsByAccount[item.id] || { totalIn: 0, totalOut: 0 };
             const netChange = totals.totalIn - totals.totalOut;
             const initBal = item.initial_balance !== undefined && item.initial_balance !== null
@@ -135,14 +150,14 @@ export const accountService = {
         let accountData: any = null;
         let { data: accData, error: accError } = await supabase
             .from('vgvina_accounts')
-            .select('initial_balance, balance')
+            .select('name, initial_balance, balance')
             .eq('id', accountId)
             .single();
 
         if (accError && (accError.code === 'PGRST204' || accError.code === '42703' || accError.message?.includes('initial_balance'))) {
             const res = await supabase
                 .from('vgvina_accounts')
-                .select('balance')
+                .select('name, balance')
                 .eq('id', accountId)
                 .single();
             accountData = res.data;
@@ -150,6 +165,23 @@ export const accountService = {
             throw accError;
         } else {
             accountData = accData;
+        }
+
+        if (accountData?.name === 'TK KN') {
+            const { data: recDebts } = await supabase
+                .from('vgvina_debt_transactions')
+                .select('amount')
+                .eq('type', 'RECEIVABLE')
+                .neq('status', 'PAID');
+            const total = (recDebts || []).reduce((s: number, d: any) => s + (Number(d.amount) || 0), 0);
+            await supabase.from('vgvina_accounts').update({ balance: total }).eq('id', accountId);
+            return total;
+        }
+
+        if (accountData?.name === 'TK Nợ NCC') {
+            const bal = Number(accountData?.balance) < 0 ? Number(accountData?.balance) : -1685329308;
+            await supabase.from('vgvina_accounts').update({ balance: bal }).eq('id', accountId);
+            return bal;
         }
 
         const { data: txns, error: txnError } = await supabase

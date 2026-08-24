@@ -127,12 +127,13 @@ export const transactionService = {
         employeeId?: number, 
         partnerId?: string,
         startDate?: string,
-        endDate?: string
+        endDate?: string,
+        partnerType?: 'CUSTOMER' | 'SUPPLIER'
     ): Promise<FinancialTransaction[]> {
         let query = supabase.from('vgvina_financial_transactions')
             .select(`
                 *,
-                partner:partner_id ( name ),
+                partner:partner_id ( id, name, type ),
                 facility:facility_id ( name ),
                 category:category_id ( name ),
                 account:account_id ( name ),
@@ -178,7 +179,12 @@ export const transactionService = {
             throw error;
         }
 
-        return data.map((item: any) => {
+        let filteredData = data || [];
+        if (partnerType) {
+            filteredData = filteredData.filter((item: any) => item.partner && item.partner.type === partnerType);
+        }
+
+        return filteredData.map((item: any) => {
             const assignees = item.assignees || [];
             const employee_names = assignees.map((a: any) => a.employee?.full_name).filter(Boolean);
             const employee_ids = assignees.map((a: any) => String(a.employee?.id)).filter(Boolean);
@@ -307,68 +313,6 @@ export const transactionService = {
             await debtService.reconcilePartnerDebts(payload.partnerId, payload.operatorName || 'Hệ thống');
         }
 
-        // --- Log Settlement in TK KN / TK Nợ NCC for the full transaction amount -----
-            const settlementAmount = Number(payload.amount);
-            if (settlementAmount > 0) {
-                const defaultDebtAccountName = payload.type === TransactionType.INCOME ? 'TK KN' : 'TK Nợ NCC';
-
-                // Determine transaction type for debt account (reverse of the cash transaction)
-                // If I receive cash (INCOME) for debt -> My receivable debt decreases -> EXPENSE from TK KN
-                // If I pay cash (EXPENSE) for debt -> My payable debt decreases -> INCOME to TK Nợ NCC
-                const debtTxnType = payload.type === TransactionType.INCOME ? 'EXPENSE' : 'INCOME';
-
-                const { data: debtAccData } = await supabase
-                    .from('vgvina_accounts')
-                    .select('id, balance')
-                    .eq('name', defaultDebtAccountName)
-                    .single();
-
-                if (debtAccData) {
-                    const debtAccountId = debtAccData.id;
-                    const debtAccountBalance = Number(debtAccData.balance) || 0;
-
-                    // Fallback category for debt settlement
-                    const debtCategoryName = payload.type === TransactionType.INCOME ? 'Bán hàng (Giảm nợ)' : 'Chi phí mua hàng (Giảm nợ)';
-                    const { data: catData } = await supabase.from('vgvina_transaction_categories').select('id').eq('name', debtCategoryName).single();
-                    const categoryName = payload.type === TransactionType.INCOME ? 'Bán hàng' : 'Chi phí nguyên vật liệu';
-                    const { data: defaultCatData } = await supabase.from('vgvina_transaction_categories').select('id').eq('name', categoryName).single();
-                    const fallbackCatId = catData?.id || defaultCatData?.id;
-
-                    // Insert virtual transaction for debt account
-                    const { data: debtTxn } = await supabase.from('vgvina_financial_transactions').insert({
-                        code: `${debtTxnType === 'INCOME' ? 'PT(N)' : 'PC(N)'}-${Date.now()}`,
-                        type: debtTxnType,
-                        transaction_date: payload.transactionDate,
-                        amount: settlementAmount,
-                        category_id: fallbackCatId,
-                        description: `Giảm trừ công nợ khách hàng/NCC (Thanh toán: ${transaction.code})`,
-                        partner_id: payload.partnerId,
-                        facility_id: payload.facilityId || null,
-                        account_id: debtAccountId,
-                        employee_id: payload.assignedUserIds.length > 0 ? payload.assignedUserIds[0] : null,
-                        related_transaction_id: transaction.id // Link back to original cash transaction
-                    }).select().single();
-
-                    if (debtTxn && payload.assignedUserIds.length > 0) {
-                        const debtTxnAssignees = payload.assignedUserIds.map(empId => ({
-                            transaction_id: debtTxn.id,
-                            employee_id: empId
-                        }));
-                        await supabase.from('vgvina_transaction_assignees').insert(debtTxnAssignees);
-                    }
-
-                    // Update balance of TK KN / TK Nợ NCC
-                    // Receivable Debt (TK KN): decrease balance (EXPENSE logic in general account is current - amt )
-                    // Payable Debt (TK Nợ NCC): decrease negative balance (INCOME logic in general account is current + amt)
-                    const newDebtBalance = debtTxnType === 'INCOME'
-                        ? debtAccountBalance + settlementAmount
-                        : debtAccountBalance - settlementAmount;
-
-                    await supabase.from('vgvina_accounts').update({ balance: newDebtBalance }).eq('id', debtAccountId);
-                }
-            }
-            // --- End Log Settlement ---
-
         return transaction;
     },
 
@@ -390,33 +334,7 @@ export const transactionService = {
             await this.revertDebtTransactions(transaction.partner_id, transaction.type, transaction.amount);
         }
 
-        // 2. Find any related virtual debt transactions and reverse them too
-        const { data: relatedTxns } = await supabase
-            .from('vgvina_financial_transactions')
-            .select('id, amount, type, account_id')
-            .eq('related_transaction_id', id);
-
-        if (relatedTxns && relatedTxns.length > 0) {
-            for (const relTxn of relatedTxns) {
-                // Reverse virtual debt account balance
-                if (relTxn.account_id) {
-                    const { data: debtAcc } = await supabase.from('vgvina_accounts').select('balance').eq('id', relTxn.account_id).single();
-                    if (debtAcc) {
-                        const currentBalance = Number(debtAcc.balance) || 0;
-                        const amt = Number(relTxn.amount) || 0;
-                        // Reverse: Subtract if INCOME, add if EXPENSE
-                        const newBalance = relTxn.type === TransactionType.INCOME
-                            ? currentBalance - amt
-                            : currentBalance + amt;
-                        await supabase.from('vgvina_accounts').update({ balance: newBalance }).eq('id', relTxn.account_id);
-                    }
-                }
-                // Delete the virtual transaction
-                await supabase.from('vgvina_financial_transactions').delete().eq('id', relTxn.id);
-            }
-        }
-
-        // 3. Delete the main transaction
+        // 2. Delete the main transaction
         const { error } = await supabase
             .from('vgvina_financial_transactions')
             .delete()
@@ -537,122 +455,17 @@ export const transactionService = {
 
             // Case C: Partner changed
             if (oldTxn.partner_id !== updatedTxn.partner_id) {
-                // Step 1: Revert old virtual transaction
                 if (oldTxn.partner_id) {
                     await this.revertDebtTransactions(oldTxn.partner_id, oldTxn.type, oldTxn.amount);
-                    const { data: oldRelatedTxns } = await supabase
-                        .from('vgvina_financial_transactions')
-                        .select('id, amount, type, account_id')
-                        .eq('related_transaction_id', id);
-
-                    if (oldRelatedTxns && oldRelatedTxns.length > 0) {
-                        for (const relTxn of oldRelatedTxns) {
-                            if (relTxn.account_id) {
-                                const { data: debtAcc } = await supabase.from('vgvina_accounts').select('balance').eq('id', relTxn.account_id).single();
-                                if (debtAcc) {
-                                    const currentBalance = Number(debtAcc.balance) || 0;
-                                    const amt = Number(relTxn.amount) || 0;
-                                    const newBalance = relTxn.type === TransactionType.INCOME
-                                        ? currentBalance - amt
-                                        : currentBalance + amt;
-                                    await supabase.from('vgvina_accounts').update({ balance: newBalance }).eq('id', relTxn.account_id);
-                                }
-                            }
-                            await supabase.from('vgvina_financial_transactions').delete().eq('id', relTxn.id);
-                        }
-                    }
+                    await debtService.reconcilePartnerDebts(oldTxn.partner_id, 'Hệ thống');
                 }
-
-                // Step 2: Create new virtual transaction if updatedTxn has partner
                 if (updatedTxn.partner_id) {
-                    await this.settleDebtTransactions(updatedTxn.partner_id, updatedTxn.type, updatedTxn.amount);
-                    const defaultDebtAccountName = updatedTxn.type === TransactionType.INCOME ? 'TK KN' : 'TK Nợ NCC';
-                    const debtTxnType = updatedTxn.type === TransactionType.INCOME ? 'EXPENSE' : 'INCOME';
-
-                    const { data: debtAccData } = await supabase
-                        .from('vgvina_accounts')
-                        .select('id, balance')
-                        .eq('name', defaultDebtAccountName)
-                        .single();
-
-                    if (debtAccData) {
-                        const debtAccountId = debtAccData.id;
-                        const debtAccountBalance = Number(debtAccData.balance) || 0;
-
-                        const debtCategoryName = updatedTxn.type === TransactionType.INCOME ? 'Bán hàng (Giảm nợ)' : 'Chi phí mua hàng (Giảm nợ)';
-                        const { data: catData } = await supabase.from('vgvina_transaction_categories').select('id').eq('name', debtCategoryName).single();
-                        const categoryName = updatedTxn.type === TransactionType.INCOME ? 'Bán hàng' : 'Chi phí nguyên vật liệu';
-                        const { data: defaultCatData } = await supabase.from('vgvina_transaction_categories').select('id').eq('name', categoryName).single();
-                        const fallbackCatId = catData?.id || defaultCatData?.id;
-
-                        const { data: debtTxn } = await supabase.from('vgvina_financial_transactions').insert({
-                            code: `${debtTxnType === 'INCOME' ? 'PT(N)' : 'PC(N)'}-${Date.now()}`,
-                            type: debtTxnType,
-                            transaction_date: updatedTxn.transaction_date,
-                            amount: updatedTxn.amount,
-                            category_id: fallbackCatId,
-                            description: `Giảm trừ công nợ khách hàng/NCC (Thanh toán: ${updatedTxn.code})`,
-                            partner_id: updatedTxn.partner_id,
-                            facility_id: updatedTxn.facility_id || null,
-                            account_id: debtAccountId,
-                            employee_id: updatedTxn.employee_id || null,
-                            related_transaction_id: id
-                        }).select().single();
-
-                        if (debtTxn && updatedTxn.employee_id) {
-                            await supabase.from('vgvina_transaction_assignees').insert({
-                                transaction_id: debtTxn.id,
-                                employee_id: updatedTxn.employee_id
-                            });
-                        }
-
-                        const newDebtBalance = debtTxnType === 'INCOME'
-                            ? debtAccountBalance + Number(updatedTxn.amount)
-                            : debtAccountBalance - Number(updatedTxn.amount);
-
-                        await supabase.from('vgvina_accounts').update({ balance: newDebtBalance }).eq('id', debtAccountId);
-                    }
+                    await debtService.reconcilePartnerDebts(updatedTxn.partner_id, 'Hệ thống');
                 }
             }
             // Case D: Same partner, but amount changed
             else if (oldTxn.partner_id && Number(oldTxn.amount) !== Number(updatedTxn.amount)) {
-                const difference = Number(updatedTxn.amount) - Number(oldTxn.amount);
-
-                if (difference > 0) {
-                    await this.settleDebtTransactions(updatedTxn.partner_id, updatedTxn.type, difference);
-                } else if (difference < 0) {
-                    await this.revertDebtTransactions(updatedTxn.partner_id, updatedTxn.type, -difference);
-                }
-
-                const { data: relatedTxns } = await supabase
-                    .from('vgvina_financial_transactions')
-                    .select('id, amount, type, account_id')
-                    .eq('related_transaction_id', id);
-
-                if (relatedTxns && relatedTxns.length > 0) {
-                    for (const relTxn of relatedTxns) {
-                        const newRelAmount = Number(relTxn.amount) + difference;
-
-                        // Update virtual debt account balance
-                        if (relTxn.account_id) {
-                            const { data: debtAcc } = await supabase.from('vgvina_accounts').select('balance').eq('id', relTxn.account_id).single();
-                            if (debtAcc) {
-                                const balance = Number(debtAcc.balance) || 0;
-                                const finalBalance = relTxn.type === TransactionType.INCOME
-                                    ? balance + difference
-                                    : balance - difference;
-                                await supabase.from('vgvina_accounts').update({ balance: finalBalance }).eq('id', relTxn.account_id);
-                            }
-                        }
-
-                        // If amount drops to 0 or below, delete it. Else update it.
-                        if (newRelAmount <= 0) {
-                            await supabase.from('vgvina_financial_transactions').delete().eq('id', relTxn.id);
-                        } else {
-                            await supabase.from('vgvina_financial_transactions').update({ amount: newRelAmount }).eq('id', relTxn.id);
-                        }
-                    }
-                }
+                await debtService.reconcilePartnerDebts(oldTxn.partner_id, 'Hệ thống');
             }
         }
     },

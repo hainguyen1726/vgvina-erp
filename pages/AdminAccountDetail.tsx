@@ -255,7 +255,16 @@ export const AdminAccountDetail: React.FC = () => {
                 setAccount(foundAccount || null);
 
                 // Fetch transactions for this account
-                const txns = await transactionService.getTransactions('All', accountId);
+                let txns: FinancialTransaction[] = [];
+                if (foundAccount?.name === 'TK KN') {
+                    // Tập hợp tất cả giao dịch tài chính liên quan đến Khách hàng
+                    txns = await transactionService.getTransactions('All', undefined, undefined, undefined, undefined, undefined, undefined, 'CUSTOMER');
+                } else if (foundAccount?.name === 'TK Nợ NCC') {
+                    // Tập hợp tất cả giao dịch tài chính liên quan đến Nhà cung cấp
+                    txns = await transactionService.getTransactions('All', undefined, undefined, undefined, undefined, undefined, undefined, 'SUPPLIER');
+                } else {
+                    txns = await transactionService.getTransactions('All', accountId);
+                }
                 setTransactionsData(txns);
             } catch (error) {
                 console.error("Error fetching account detail", error);
@@ -268,21 +277,32 @@ export const AdminAccountDetail: React.FC = () => {
 
     // const account = useMemo(() => adminAccounts.find(acc => acc.id === accountId), [accountId]); // Replaced by state
 
+    const isSpecialAccount = account?.name === 'TK KN' || account?.name === 'TK Nợ NCC';
+
     const { totalIn, totalOut, transactions, currentBalance, initialBalance, netChange } = useMemo(() => {
         if (!accountId || !account) return { totalIn: 0, totalOut: 0, transactions: [], currentBalance: 0, initialBalance: 0, netChange: 0 };
 
-        const allAccountTransactions = transactionsData.filter(t => t.accountId === accountId);
+        const allAccountTransactions = isSpecialAccount
+            ? transactionsData
+            : transactionsData.filter(t => t.accountId === accountId);
 
         const totalIn = allAccountTransactions.reduce((sum, t) => t.type === TransactionType.INCOME ? sum + t.amount : sum, 0);
         const totalOut = allAccountTransactions.reduce((sum, t) => t.type === TransactionType.EXPENSE ? sum + t.amount : sum, 0);
 
         const netChange = totalIn - totalOut;
-        const initialBalance = account.initial_balance !== undefined && account.initial_balance !== null
-            ? account.initial_balance
-            : (account.balance - netChange);
+        
+        let initialBalance = 0;
+        let currentBalance = 0;
 
-        // Số dư thực tế = Số dư đầu kỳ + Tổng vào - Tổng ra
-        const currentBalance = initialBalance + totalIn - totalOut;
+        if (isSpecialAccount) {
+            currentBalance = Number(account.balance) || 0;
+            initialBalance = currentBalance - netChange;
+        } else {
+            initialBalance = account.initial_balance !== undefined && account.initial_balance !== null
+                ? account.initial_balance
+                : (account.balance - netChange);
+            currentBalance = initialBalance + totalIn - totalOut;
+        }
 
         let filteredTransactions = [...allAccountTransactions];
 
@@ -301,7 +321,7 @@ export const AdminAccountDetail: React.FC = () => {
         filteredTransactions.sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
 
         return { totalIn, totalOut, transactions: filteredTransactions, currentBalance, initialBalance, netChange };
-    }, [accountId, account, searchTerm, filterOption, transactionsData]);
+    }, [accountId, account, searchTerm, filterOption, transactionsData, isSpecialAccount]);
 
     const totalPages = Math.ceil(transactions.length / itemsPerPage);
     const paginatedTransactions = transactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -509,7 +529,14 @@ export const AdminAccountDetail: React.FC = () => {
                                             <tr key={t.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => setModalItem(t)}>
                                                 <td className="px-4 py-3 w-1/2">
                                                     <p className="font-medium text-gray-800">{t.description}</p>
-                                                    <p className="text-xs text-gray-500">{t.partner_name || 'Giao dịch nội bộ'}</p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {t.partner_name || 'Giao dịch nội bộ'}
+                                                        {isSpecialAccount && t.account_name && t.account_name !== 'N/A' && (
+                                                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-700">
+                                                                Qua: {t.account_name}
+                                                            </span>
+                                                        )}
+                                                    </p>
                                                 </td>
                                                 <td className="px-4 py-3 text-right">
                                                     <p className={`font-semibold ${t.type === TransactionType.INCOME ? 'text-green-600' : 'text-red-600'}`}>
@@ -533,7 +560,14 @@ export const AdminAccountDetail: React.FC = () => {
                             <div className="flex justify-between items-start text-sm">
                                 <div className="pr-2">
                                     <p className="font-semibold text-gray-800 leading-tight">{t.description}</p>
-                                    <p className="text-xs text-gray-500 mt-0.5">{t.partner_name || 'Giao dịch nội bộ'}</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        {t.partner_name || 'Giao dịch nội bộ'}
+                                        {isSpecialAccount && t.account_name && t.account_name !== 'N/A' && (
+                                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-700">
+                                                Qua: {t.account_name}
+                                            </span>
+                                        )}
+                                    </p>
                                 </div>
                                 <p className={`font-bold whitespace-nowrap ${t.type === TransactionType.INCOME ? 'text-green-600' : 'text-red-600'}`}>
                                     {t.type === TransactionType.INCOME ? '+' : '-'} {t.amount.toLocaleString('vi-VN')}

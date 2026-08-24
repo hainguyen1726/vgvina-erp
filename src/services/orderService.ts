@@ -210,15 +210,6 @@ export const orderService = {
     async handleTransactions(orderId: string, type: 'SALES' | 'PURCHASE', payload: CreateOrderPayload) {
         const remaining = payload.totalAmount - (payload.discount || 0) - payload.amountPaid;
         const isSales = type === 'SALES';
-        const defaultDebtAccountName = isSales ? 'TK KN' : 'TK Nợ NCC';
-
-        // Helper fetch default debt account
-        const { data: debtAccData } = await supabase
-            .from('vgvina_accounts')
-            .select('id')
-            .eq('name', defaultDebtAccountName)
-            .single();
-        const defaultDebtAccountId = debtAccData?.id;
 
         // A. Financial Transaction (if paid > 0)
         if (payload.amountPaid > 0 && payload.accountId) {
@@ -307,63 +298,6 @@ export const orderService = {
                     await supabase.from('vgvina_debt_assignees').insert(debtAssignees);
                 }
             }
-
-            // --- Create Financial Transaction for Debt Account and Update Balance ---
-            if (defaultDebtAccountId) {
-                const debtCategoryName = isSales ? 'Bán hàng (Ghi nợ)' : 'Chi phí mua hàng (Ghi nợ)';
-                const { data: catData } = await supabase
-                    .from('vgvina_transaction_categories')
-                    .select('id')
-                    .eq('name', debtCategoryName)
-                    .single();
-
-                const categoryName = isSales ? 'Doanh thu Bán hàng' : 'Chi phí nguyên vật liệu';
-                const { data: defaultCatData } = await supabase.from('vgvina_transaction_categories').select('id').eq('name', categoryName).single();
-                const fallbackCatId = catData?.id || defaultCatData?.id;
-
-                const { data: debtTxn } = await supabase.from('vgvina_financial_transactions').insert({
-                    code: `${isSales ? 'PT(N)' : 'PC(N)'}-${Date.now()}`,
-                    type: isSales ? 'INCOME' : 'EXPENSE',
-                    transaction_date: payload.orderDate,
-                    amount: remaining,
-                    category_id: fallbackCatId,
-                    description: `Phát sinh công nợ từ đơn ${payload.code}`,
-                    partner_id: toNullableUuid(payload.partnerId),
-                    facility_id: toNullableUuid(payload.facilityId),
-                    account_id: defaultDebtAccountId,
-                    employee_id: payload.assignedUserIds.length > 0 ? toNullableUuid(payload.assignedUserIds[0]) : null,
-                    related_order_id: toNullableUuid(orderId),
-                    related_order_type: type
-                }).select().single();
-
-                if (debtTxn && payload.assignedUserIds.length > 0) {
-                    const debtTxnAssignees = payload.assignedUserIds.map(empId => ({
-                        transaction_id: debtTxn.id,
-                        employee_id: empId
-                    }));
-                    await supabase.from('vgvina_transaction_assignees').insert(debtTxnAssignees);
-                }
-
-                // Update balance of TK KN / TK Nợ NCC
-                const { data: debtAccBalanceData } = await supabase.from('vgvina_accounts').select('balance').eq('id', defaultDebtAccountId).single();
-                if (debtAccBalanceData) {
-                    const currentDebtBalance = Number(debtAccBalanceData.balance) || 0;
-                    // Tăng số nợ (dù là thu hay chi, vì sổ quỹ Nợ thể hiện bề mặt "đang bị nợ" hoặc "đang thiếu nợ")
-                    // Tuy nhiên, đối với Sổ Quỹ:
-                    // TK KN (Tài sản) -> Tăng -> Cộng
-                    // TK Nợ NCC (Nguồn vốn) -> Tăng nợ -> Bản chất trong sổ quỹ dòng tiền là Âm, hay là ta cứ coi Nợ là Số dương đi?
-                    // Theo như code transaction service: INCOME = (+), EXPENSE = (-)
-                    // Phải đồng nhất logic:
-                    // - Bán hàng (INCOME): Dòng tiền "ảo" vào TK KN -> Tăng số dư (Đúng, nợ phải thu tăng)
-                    // - Mua hàng (EXPENSE): Dòng tiền "ảo" ra hỏi TK Nợ NCC -> Trừ số dư gốc (Số dư âm càng lớn = nợ càng nhiều)
-                    const newDebtBalance = isSales
-                        ? currentDebtBalance + remaining
-                        : currentDebtBalance - remaining;
-
-                    await supabase.from('vgvina_accounts').update({ balance: newDebtBalance }).eq('id', defaultDebtAccountId);
-                }
-            }
-            // --- End Financial Transaction for Debt Account ---
         }
 
         // Call reconcilePartnerDebts to ensure all debts are auto-settled correctly in FIFO
@@ -849,61 +783,6 @@ export const orderService = {
                             .update(updateData)
                             .eq('id', debt.id);
                     }
-                }
-
-                // B. Log virtual transaction in TK KN / TK Nợ NCC and update balance
-                const defaultDebtAccountName = isSales ? 'TK KN' : 'TK Nợ NCC';
-                const debtTxnType = isSales ? 'EXPENSE' : 'INCOME';
-
-                const { data: debtAccData } = await supabase
-                    .from('vgvina_accounts')
-                    .select('id, balance')
-                    .eq('name', defaultDebtAccountName)
-                    .single();
-
-                if (debtAccData) {
-                    const debtAccountId = debtAccData.id;
-                    const debtAccountBalance = Number(debtAccData.balance) || 0;
-
-                    const debtCategoryName = isSales ? 'Bán hàng (Giảm nợ)' : 'Chi phí mua hàng (Giảm nợ)';
-                    const { data: catData } = await supabase
-                        .from('vgvina_transaction_categories')
-                        .select('id')
-                        .eq('name', debtCategoryName)
-                        .single();
-                    const categoryName = isSales ? 'Bán hàng' : 'Chi phí nguyên vật liệu';
-                    const { data: defaultCatData } = await supabase.from('vgvina_transaction_categories').select('id').eq('name', categoryName).single();
-                    const fallbackCatId = catData?.id || defaultCatData?.id;
-
-                    const { data: debtTxn } = await supabase.from('vgvina_financial_transactions').insert({
-                        code: `RET-DED-${payload.code}`,
-                        type: debtTxnType,
-                        transaction_date: payload.returnDate,
-                        amount: totalRefund,
-                        category_id: fallbackCatId,
-                        description: `Trừ công nợ từ phiếu trả hàng ${payload.code}`,
-                        partner_id: payload.partnerId,
-                        facility_id: payload.facilityId || null,
-                        account_id: debtAccountId,
-                        employee_id: payload.assignedUserIds.length > 0 ? payload.assignedUserIds[0] : null,
-                        related_order_id: returnId,
-                        related_order_type: 'RETURN'
-                    }).select().single();
-
-                    if (debtTxn && payload.assignedUserIds.length > 0) {
-                        const debtTxnAssignees = payload.assignedUserIds.map(empId => ({
-                            transaction_id: debtTxn.id,
-                            employee_id: empId
-                        }));
-                        await supabase.from('vgvina_transaction_assignees').insert(debtTxnAssignees);
-                    }
-
-                    // Update balance of TK KN / TK Nợ NCC
-                    const newDebtBalance = debtTxnType === 'INCOME'
-                        ? debtAccountBalance + totalRefund
-                        : debtAccountBalance - totalRefund;
-
-                    await supabase.from('vgvina_accounts').update({ balance: newDebtBalance }).eq('id', debtAccountId);
                 }
             }
         }
