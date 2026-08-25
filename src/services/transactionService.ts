@@ -511,5 +511,157 @@ export const transactionService = {
             .reduce((sum, t) => sum + Number(t.amount), 0);
 
         return { income, expense };
+    },
+
+    async getAccountLedgerTransactions(accountName: 'TK KN' | 'TK Nợ NCC'): Promise<FinancialTransaction[]> {
+        const isKn = accountName === 'TK KN';
+
+        // 1. Fetch financial transactions for CUSTOMER or SUPPLIER
+        const targetPartnerType = isKn ? 'CUSTOMER' : 'SUPPLIER';
+        const finTxns = await this.getTransactions('All', undefined, undefined, undefined, undefined, undefined, undefined, targetPartnerType);
+
+        // 2. Fetch orders (Sales Orders for TK KN, Purchase Orders for TK Nợ NCC)
+        let orderActivities: FinancialTransaction[] = [];
+
+        if (isKn) {
+            const { data: salesData } = await supabase
+                .from('vgvina_sales_orders')
+                .select(`
+                    id, code, total_amount, order_date, notes,
+                    customer:customer_id ( name ),
+                    facility:facility_id ( name )
+                `)
+                .order('order_date', { ascending: false });
+
+            (salesData || []).forEach((s: any) => {
+                const amt = Number(s.total_amount) || 0;
+                if (amt <= 0) return;
+                orderActivities.push({
+                    id: `sales_${s.id}`,
+                    code: s.code,
+                    type: TransactionType.EXPENSE, // For TK KN: EXPENSE represents increase in customer debt (+)
+                    transaction_date: s.order_date,
+                    amount: amt,
+                    category: 'Bán hàng',
+                    categoryId: '',
+                    description: `Hóa đơn bán hàng: ${s.code}`,
+                    facility_name: s.facility?.name || '',
+                    partner_name: s.customer?.name || 'Khách hàng',
+                    partnerId: s.customer_id,
+                    account_name: 'TK KN',
+                    accountId: '',
+                    employee_ids: [],
+                    employee_names: []
+                });
+            });
+        } else {
+            const { data: purchaseData } = await supabase
+                .from('vgvina_purchase_orders')
+                .select(`
+                    id, code, total_amount, order_date, notes,
+                    supplier:supplier_id ( name ),
+                    facility:facility_id ( name )
+                `)
+                .order('order_date', { ascending: false });
+
+            (purchaseData || []).forEach((p: any) => {
+                const amt = Number(p.total_amount) || 0;
+                if (amt <= 0) return;
+                orderActivities.push({
+                    id: `purchase_${p.id}`,
+                    code: p.code,
+                    type: TransactionType.INCOME, // For TK Nợ NCC: INCOME represents increase in supplier debt liability (-)
+                    transaction_date: p.order_date,
+                    amount: amt,
+                    category: 'Mua hàng',
+                    categoryId: '',
+                    description: `Hóa đơn mua hàng: ${p.code}`,
+                    facility_name: p.facility?.name || '',
+                    partner_name: p.supplier?.name || 'Nhà cung cấp',
+                    partnerId: p.supplier_id,
+                    account_name: 'TK Nợ NCC',
+                    accountId: '',
+                    employee_ids: [],
+                    employee_names: []
+                });
+            });
+        }
+
+        // 3. Fetch Return Vouchers
+        let returnActivities: FinancialTransaction[] = [];
+        const { data: returnData } = await supabase
+            .from('vgvina_return_vouchers')
+            .select(`
+                id, code, created_at, return_fee, discount, status, related_order_id,
+                items:vgvina_return_voucher_items ( quantity, price )
+            `);
+
+        if (returnData && returnData.length > 0) {
+            const orderIds = returnData.map((r: any) => r.related_order_id).filter(Boolean);
+            let salesMap = new Map<string, any>();
+            let purchaseMap = new Map<string, any>();
+
+            if (orderIds.length > 0) {
+                const { data: sales } = await supabase.from('vgvina_sales_orders').select('id, code, customer_id, customer:customer_id(name)').in('id', orderIds);
+                (sales || []).forEach(s => salesMap.set(s.id, s));
+
+                const { data: purchases } = await supabase.from('vgvina_purchase_orders').select('id, code, supplier_id, supplier:supplier_id(name)').in('id', orderIds);
+                (purchases || []).forEach(p => purchaseMap.set(p.id, p));
+            }
+
+            (returnData || []).forEach((r: any) => {
+                if (r.status !== 'COMPLETED' && r.status !== 'APPROVED') return;
+                const itemsTotal = (r.items || []).reduce((sum: number, item: any) => 
+                    sum + Math.round(Number(item.quantity || 0) * Number(item.price || 0)), 0);
+                const netTotal = itemsTotal - Number(r.return_fee || 0) - Number(r.discount || 0);
+                if (netTotal <= 0) return;
+
+                const salesMatch = salesMap.get(r.related_order_id);
+                const purchaseMatch = purchaseMap.get(r.related_order_id);
+
+                if (isKn && salesMatch) {
+                    returnActivities.push({
+                        id: `return_${r.id}`,
+                        code: r.code,
+                        type: TransactionType.INCOME, // For TK KN: INCOME represents decrease in customer debt (-)
+                        transaction_date: r.created_at,
+                        amount: netTotal,
+                        category: 'Trả hàng',
+                        categoryId: '',
+                        description: `Khách trả hàng: ${r.code}`,
+                        facility_name: '',
+                        partner_name: salesMatch.customer?.name || 'Khách hàng',
+                        partnerId: salesMatch.customer_id,
+                        account_name: 'TK KN',
+                        accountId: '',
+                        employee_ids: [],
+                        employee_names: []
+                    });
+                } else if (!isKn && purchaseMatch) {
+                    returnActivities.push({
+                        id: `return_${r.id}`,
+                        code: r.code,
+                        type: TransactionType.EXPENSE, // For TK Nợ NCC: EXPENSE represents decrease in supplier debt liability (+)
+                        transaction_date: r.created_at,
+                        amount: netTotal,
+                        category: 'Trả hàng',
+                        categoryId: '',
+                        description: `Trả hàng nhà cung cấp: ${r.code}`,
+                        facility_name: '',
+                        partner_name: purchaseMatch.supplier?.name || 'Nhà cung cấp',
+                        partnerId: purchaseMatch.supplier_id,
+                        account_name: 'TK Nợ NCC',
+                        accountId: '',
+                        employee_ids: [],
+                        employee_names: []
+                    });
+                }
+            });
+        }
+
+        // Combine and sort by date descending
+        const allLedger = [...finTxns, ...orderActivities, ...returnActivities];
+        allLedger.sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+        return allLedger;
     }
 };

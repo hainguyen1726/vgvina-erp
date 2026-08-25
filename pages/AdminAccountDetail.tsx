@@ -257,11 +257,11 @@ export const AdminAccountDetail: React.FC = () => {
                 // Fetch transactions for this account
                 let txns: FinancialTransaction[] = [];
                 if (foundAccount?.name === 'TK KN') {
-                    // Tập hợp tất cả giao dịch tài chính liên quan đến Khách hàng
-                    txns = await transactionService.getTransactions('All', undefined, undefined, undefined, undefined, undefined, undefined, 'CUSTOMER');
+                    // Tập hợp tất cả chứng từ Sổ cái liên quan đến Khách hàng (Đơn bán SO-, Phiếu thu PT-, Phiếu chi PC-, Trả hàng RV-)
+                    txns = await transactionService.getAccountLedgerTransactions('TK KN');
                 } else if (foundAccount?.name === 'TK Nợ NCC') {
-                    // Tập hợp tất cả giao dịch tài chính liên quan đến Nhà cung cấp
-                    txns = await transactionService.getTransactions('All', undefined, undefined, undefined, undefined, undefined, undefined, 'SUPPLIER');
+                    // Tập hợp tất cả chứng từ Sổ cái liên quan đến Nhà cung cấp (Đơn mua PO-, Phiếu chi PC-, Phiếu thu PT-, Trả hàng RV-)
+                    txns = await transactionService.getAccountLedgerTransactions('TK Nợ NCC');
                 } else {
                     txns = await transactionService.getTransactions('All', accountId);
                 }
@@ -286,8 +286,21 @@ export const AdminAccountDetail: React.FC = () => {
             ? transactionsData
             : transactionsData.filter(t => t.accountId === accountId);
 
-        const totalIn = allAccountTransactions.reduce((sum, t) => t.type === TransactionType.INCOME ? sum + t.amount : sum, 0);
-        const totalOut = allAccountTransactions.reduce((sum, t) => t.type === TransactionType.EXPENSE ? sum + t.amount : sum, 0);
+        let totalIn = 0;
+        let totalOut = 0;
+
+        if (account.name === 'TK KN') {
+            // For TK KN: EXPENSE increases customer debt (+), INCOME decreases customer debt (-)
+            totalIn = allAccountTransactions.reduce((sum, t) => t.type === TransactionType.EXPENSE ? sum + t.amount : sum, 0);
+            totalOut = allAccountTransactions.reduce((sum, t) => t.type === TransactionType.INCOME ? sum + t.amount : sum, 0);
+        } else if (account.name === 'TK Nợ NCC') {
+            // For TK Nợ NCC: EXPENSE decreases supplier debt liability (increases balance towards 0 (+)), INCOME increases supplier debt liability (-)
+            totalIn = allAccountTransactions.reduce((sum, t) => t.type === TransactionType.EXPENSE ? sum + t.amount : sum, 0);
+            totalOut = allAccountTransactions.reduce((sum, t) => t.type === TransactionType.INCOME ? sum + t.amount : sum, 0);
+        } else {
+            totalIn = allAccountTransactions.reduce((sum, t) => t.type === TransactionType.INCOME ? sum + t.amount : sum, 0);
+            totalOut = allAccountTransactions.reduce((sum, t) => t.type === TransactionType.EXPENSE ? sum + t.amount : sum, 0);
+        }
 
         const netChange = totalIn - totalOut;
         
@@ -525,27 +538,32 @@ export const AdminAccountDetail: React.FC = () => {
                                         <tr className="bg-gray-50">
                                             <td colSpan={3} className="px-4 py-2 font-bold text-gray-700">{formatDate(date)}</td>
                                         </tr>
-                                        {transactionsOnDate.map(t => (
-                                            <tr key={t.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => setModalItem(t)}>
-                                                <td className="px-4 py-3 w-1/2">
-                                                    <p className="font-medium text-gray-800">{t.description}</p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {t.partner_name || 'Giao dịch nội bộ'}
-                                                        {isSpecialAccount && t.account_name && t.account_name !== 'N/A' && (
-                                                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-700">
-                                                                Qua: {t.account_name}
-                                                            </span>
-                                                        )}
-                                                    </p>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <p className={`font-semibold ${t.type === TransactionType.INCOME ? 'text-green-600' : 'text-red-600'}`}>
-                                                        {t.type === TransactionType.INCOME ? '+' : '-'} {t.amount.toLocaleString('vi-VN')} ₫
-                                                    </p>
-                                                </td>
-                                                <td className="px-4 py-3 text-right text-xs text-gray-500 w-1/6 whitespace-nowrap">{t.code}</td>
-                                            </tr>
-                                        ))}
+                                        {transactionsOnDate.map(t => {
+                                            const isIncrease = account?.name === 'TK KN'
+                                                ? t.type === TransactionType.EXPENSE
+                                                : (account?.name === 'TK Nợ NCC' ? t.type === TransactionType.EXPENSE : t.type === TransactionType.INCOME);
+                                            return (
+                                                <tr key={t.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => setModalItem(t)}>
+                                                    <td className="px-4 py-3 w-1/2">
+                                                        <p className="font-medium text-gray-800">{t.description}</p>
+                                                        <p className="text-xs text-gray-500">
+                                                            {t.partner_name || 'Giao dịch nội bộ'}
+                                                            {isSpecialAccount && t.account_name && t.account_name !== 'N/A' && (
+                                                                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-700">
+                                                                    Qua: {t.account_name}
+                                                                </span>
+                                                            )}
+                                                        </p>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <p className={`font-semibold ${isIncrease ? 'text-green-600' : 'text-red-600'}`}>
+                                                            {isIncrease ? '+' : '-'} {t.amount.toLocaleString('vi-VN')} ₫
+                                                        </p>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right text-xs text-gray-500 w-1/6 whitespace-nowrap">{t.code}</td>
+                                                </tr>
+                                            );
+                                        })}
                                     </React.Fragment>
                                 )
                             })}
@@ -555,30 +573,35 @@ export const AdminAccountDetail: React.FC = () => {
 
                 {/* Mobile Card List */}
                 <div className="md:hidden mt-4 space-y-3">
-                    {paginatedTransactions.map((t) => (
-                        <div key={t.id} onClick={() => setModalItem(t)} className="bg-gray-50 p-3 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors border">
-                            <div className="flex justify-between items-start text-sm">
-                                <div className="pr-2">
-                                    <p className="font-semibold text-gray-800 leading-tight">{t.description}</p>
-                                    <p className="text-xs text-gray-500 mt-0.5">
-                                        {t.partner_name || 'Giao dịch nội bộ'}
-                                        {isSpecialAccount && t.account_name && t.account_name !== 'N/A' && (
-                                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-700">
-                                                Qua: {t.account_name}
-                                            </span>
-                                        )}
+                    {paginatedTransactions.map((t) => {
+                        const isIncrease = account?.name === 'TK KN'
+                            ? t.type === TransactionType.EXPENSE
+                            : (account?.name === 'TK Nợ NCC' ? t.type === TransactionType.EXPENSE : t.type === TransactionType.INCOME);
+                        return (
+                            <div key={t.id} onClick={() => setModalItem(t)} className="bg-gray-50 p-3 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors border">
+                                <div className="flex justify-between items-start text-sm">
+                                    <div className="pr-2">
+                                        <p className="font-semibold text-gray-800 leading-tight">{t.description}</p>
+                                        <p className="text-xs text-gray-500 mt-0.5">
+                                            {t.partner_name || 'Giao dịch nội bộ'}
+                                            {isSpecialAccount && t.account_name && t.account_name !== 'N/A' && (
+                                                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-700">
+                                                    Qua: {t.account_name}
+                                                </span>
+                                            )}
+                                        </p>
+                                    </div>
+                                    <p className={`font-bold whitespace-nowrap ${isIncrease ? 'text-green-600' : 'text-red-600'}`}>
+                                        {isIncrease ? '+' : '-'} {t.amount.toLocaleString('vi-VN')}
                                     </p>
                                 </div>
-                                <p className={`font-bold whitespace-nowrap ${t.type === TransactionType.INCOME ? 'text-green-600' : 'text-red-600'}`}>
-                                    {t.type === TransactionType.INCOME ? '+' : '-'} {t.amount.toLocaleString('vi-VN')}
-                                </p>
+                                <div className="flex justify-between items-center mt-1">
+                                    <p className="text-xs text-gray-500">{t.code}</p>
+                                    <p className="text-xs text-gray-400">{formatDate(t.transaction_date)}</p>
+                                </div>
                             </div>
-                            <div className="flex justify-between items-center mt-1">
-                                <p className="text-xs text-gray-500">{t.code}</p>
-                                <p className="text-xs text-gray-400">{formatDate(t.transaction_date)}</p>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 {transactions.length > 0 && (

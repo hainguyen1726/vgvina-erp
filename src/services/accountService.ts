@@ -179,7 +179,13 @@ export const accountService = {
         }
 
         if (accountData?.name === 'TK Nợ NCC') {
-            const bal = Number(accountData?.balance) < 0 ? Number(accountData?.balance) : -1685329308;
+            const { data: payDebts } = await supabase
+                .from('vgvina_debt_transactions')
+                .select('amount')
+                .eq('type', 'PAYABLE')
+                .neq('status', 'PAID');
+            const total = (payDebts || []).reduce((s: number, d: any) => s + (Number(d.amount) || 0), 0);
+            const bal = -total;
             await supabase.from('vgvina_accounts').update({ balance: bal }).eq('id', accountId);
             return bal;
         }
@@ -207,6 +213,28 @@ export const accountService = {
             .eq('id', accountId);
 
         return computedBalance;
+    },
+
+    async syncDebtAccountsBalance(): Promise<{ recBalance: number; nccBalance: number }> {
+        const { data: accounts } = await supabase
+            .from('vgvina_accounts')
+            .select('id, name')
+            .in('name', ['TK KN', 'TK Nợ NCC']);
+
+        const tkKn = accounts?.find(a => a.name === 'TK KN');
+        const tkNcc = accounts?.find(a => a.name === 'TK Nợ NCC');
+
+        let recBalance = 0;
+        let nccBalance = 0;
+
+        if (tkKn) {
+            recBalance = await this.recalculateAccountBalance(tkKn.id);
+        }
+        if (tkNcc) {
+            nccBalance = await this.recalculateAccountBalance(tkNcc.id);
+        }
+
+        return { recBalance, nccBalance };
     },
 
     async recalculateAllAccountBalances(): Promise<void> {

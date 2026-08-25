@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { Debt, DebtStatus } from '../../types';
+import { accountService } from './accountService';
 
 export const debtService = {
     async getDebts(facilityId?: string, employeeId?: number): Promise<Debt[]> {
@@ -261,6 +262,13 @@ export const debtService = {
                     }
                 }
             }
+        }
+
+        // Synchronize TK KN & TK Nợ NCC balances
+        try {
+            await accountService.syncDebtAccountsBalance();
+        } catch (syncErr) {
+            console.error('[reconcilePartnerDebts] Failed to sync debt accounts balance:', syncErr);
         }
     },
 

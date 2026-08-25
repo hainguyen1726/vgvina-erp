@@ -34,141 +34,31 @@ export const partnerService = {
             throw error;
         }
 
-        // Fetch balances for the partners
-        // 1. Sales
-        const { data: salesData } = await supabase
-            .from('vgvina_sales_orders')
-            .select('id, customer_id, total_amount, facility_id');
+        // Fetch unpaid debt transactions for all partners to ensure 100% match with TK KN & TK Nợ NCC
+        const { data: debtTxns } = await supabase
+            .from('vgvina_debt_transactions')
+            .select('partner_id, amount, facility_id')
+            .neq('status', 'PAID');
 
-        // 2. Purchases
-        const { data: purchaseData } = await supabase
-            .from('vgvina_purchase_orders')
-            .select('id, supplier_id, total_amount, facility_id');
+        const totalsByPartner: Record<string, number> = {};
+        const totalsByPartnerFacility: Record<string, number> = {};
 
-        // 3. Transactions
-        const { data: txnData } = await supabase
-            .from('vgvina_financial_transactions')
-            .select('partner_id, amount, type, facility_id, account:account_id ( name )');
-
-        // 4. Return Vouchers (Phiếu trả hàng - giảm nợ)
-        const { data: returnData } = await supabase
-            .from('vgvina_return_vouchers')
-            .select(`
-                id, return_fee, discount, status, related_order_id,
-                items:vgvina_return_voucher_items ( quantity, price )
-            `);
-
-        // Map sales & purchase orders to find partner_id and facility_id of return vouchers
-        const salesOrderMap = new Map<string, { partner_id: string; facility_id: string }>();
-        (salesData || []).forEach(s => {
-            if (s.id && s.customer_id) {
-                salesOrderMap.set(s.id, { partner_id: s.customer_id, facility_id: s.facility_id });
-            }
-        });
-
-        const purchaseOrderMap = new Map<string, { partner_id: string; facility_id: string }>();
-        (purchaseData || []).forEach(p => {
-            if (p.id && p.supplier_id) {
-                purchaseOrderMap.set(p.id, { partner_id: p.supplier_id, facility_id: p.facility_id });
-            }
-        });
-
-        const returnList: { partner_id: string; facility_id: string; netTotal: number }[] = [];
-        (returnData || []).forEach(r => {
-            if (r.status !== 'COMPLETED' && r.status !== 'APPROVED') return;
-
-            const itemsTotal = (r.items || []).reduce((sum: number, item: any) => 
-                sum + Math.round(Number(item.quantity || 0) * Number(item.price || 0)), 0);
-            const netTotal = itemsTotal - Number(r.return_fee || 0) - Number(r.discount || 0);
-
-            const salesMatch = salesOrderMap.get(r.related_order_id);
-            const purchaseMatch = purchaseOrderMap.get(r.related_order_id);
-
-            if (salesMatch) {
-                returnList.push({
-                    partner_id: salesMatch.partner_id,
-                    facility_id: salesMatch.facility_id,
-                    netTotal: netTotal
-                });
-            } else if (purchaseMatch) {
-                returnList.push({
-                    partner_id: purchaseMatch.partner_id,
-                    facility_id: purchaseMatch.facility_id,
-                    netTotal: netTotal
-                });
+        (debtTxns || []).forEach((d: any) => {
+            if (!d.partner_id) return;
+            const amt = Number(d.amount) || 0;
+            totalsByPartner[d.partner_id] = (totalsByPartner[d.partner_id] || 0) + amt;
+            if (d.facility_id) {
+                const key = `${d.partner_id}_${d.facility_id}`;
+                totalsByPartnerFacility[key] = (totalsByPartnerFacility[key] || 0) + amt;
             }
         });
 
         return data.map((item: any) => {
             const pId = item.id;
-            let balance = 0;
-            let totalBalance = 0;
-
-            // Tính totalBalance (toàn hệ thống)
-            if (salesData) {
-                totalBalance += salesData
-                    .filter(s => s.customer_id === pId)
-                    .reduce((sum, s) => sum + (Number(s.total_amount) || 0), 0);
-            }
-            if (purchaseData) {
-                totalBalance += purchaseData
-                    .filter(p => p.supplier_id === pId)
-                    .reduce((sum, p) => sum + (Number(p.total_amount) || 0), 0);
-            }
-            if (txnData) {
-                const partnerTxns = txnData.filter(t => t.partner_id === pId && (t.account as any)?.name !== 'TK KN' && (t.account as any)?.name !== 'TK Nợ NCC');
-                const txnSum = partnerTxns.reduce((sum, t) => {
-                    const amt = Number(t.amount) || 0;
-                    if (item.type === 'CUSTOMER') {
-                        // For Customer: INCOME decreases debt (-), EXPENSE increases debt (+)
-                        return sum + (t.type === 'INCOME' ? -amt : amt);
-                    } else {
-                        // For Supplier: EXPENSE decreases debt (-), INCOME increases debt (+)
-                        return sum + (t.type === 'EXPENSE' ? -amt : amt);
-                    }
-                }, 0);
-                totalBalance += txnSum;
-            }
-            if (returnList.length > 0) {
-                const partnerReturns = returnList.filter(r => r.partner_id === pId);
-                const returnSum = partnerReturns.reduce((sum, r) => sum + r.netTotal, 0);
-                totalBalance -= returnSum;
-            }
-
-            // Tính balance (theo chi nhánh nếu có)
-            if (facilityId) {
-                if (salesData) {
-                    balance += salesData
-                        .filter(s => s.customer_id === pId && s.facility_id === facilityId)
-                        .reduce((sum, s) => sum + (Number(s.total_amount) || 0), 0);
-                }
-                if (purchaseData) {
-                    balance += purchaseData
-                        .filter(p => p.supplier_id === pId && p.facility_id === facilityId)
-                        .reduce((sum, p) => sum + (Number(p.total_amount) || 0), 0);
-                }
-                if (txnData) {
-                    const partnerTxns = txnData.filter(t => t.partner_id === pId && t.facility_id === facilityId && (t.account as any)?.name !== 'TK KN' && (t.account as any)?.name !== 'TK Nợ NCC');
-                    const txnSum = partnerTxns.reduce((sum, t) => {
-                        const amt = Number(t.amount) || 0;
-                        if (item.type === 'CUSTOMER') {
-                            // For Customer: INCOME decreases debt (-), EXPENSE increases debt (+)
-                            return sum + (t.type === 'INCOME' ? -amt : amt);
-                        } else {
-                            // For Supplier: EXPENSE decreases debt (-), INCOME increases debt (+)
-                            return sum + (t.type === 'EXPENSE' ? -amt : amt);
-                        }
-                    }, 0);
-                    balance += txnSum;
-                }
-                if (returnList.length > 0) {
-                    const partnerFacilityReturns = returnList.filter(r => r.partner_id === pId && r.facility_id === facilityId);
-                    const facilityReturnSum = partnerFacilityReturns.reduce((sum, r) => sum + r.netTotal, 0);
-                    balance -= facilityReturnSum;
-                }
-            } else {
-                balance = totalBalance;
-            }
+            const totalBalance = totalsByPartner[pId] || 0;
+            const balance = facilityId
+                ? (totalsByPartnerFacility[`${pId}_${facilityId}`] || 0)
+                : totalBalance;
 
             return {
                 id: item.id,
