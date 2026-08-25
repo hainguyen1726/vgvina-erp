@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient';
-
+import { partnerService } from './partnerService';
 import { AdminAccount } from '../../types';
 
 export const accountService = {
@@ -168,23 +168,19 @@ export const accountService = {
         }
 
         if (accountData?.name === 'TK KN') {
-            const { data: recDebts } = await supabase
-                .from('vgvina_debt_transactions')
-                .select('amount')
-                .eq('type', 'RECEIVABLE')
-                .neq('status', 'PAID');
-            const total = (recDebts || []).reduce((s: number, d: any) => s + (Number(d.amount) || 0), 0);
+            const partners = await partnerService.getPartners();
+            const total = partners
+                .filter(p => p.type === 'CUSTOMER')
+                .reduce((s, p) => s + (Number(p.totalBalance) || 0), 0);
             await supabase.from('vgvina_accounts').update({ balance: total }).eq('id', accountId);
             return total;
         }
 
         if (accountData?.name === 'TK Nợ NCC') {
-            const { data: payDebts } = await supabase
-                .from('vgvina_debt_transactions')
-                .select('amount')
-                .eq('type', 'PAYABLE')
-                .neq('status', 'PAID');
-            const total = (payDebts || []).reduce((s: number, d: any) => s + (Number(d.amount) || 0), 0);
+            const partners = await partnerService.getPartners();
+            const total = partners
+                .filter(p => p.type === 'SUPPLIER')
+                .reduce((s, p) => s + (Number(p.totalBalance) || 0), 0);
             const bal = -total;
             await supabase.from('vgvina_accounts').update({ balance: bal }).eq('id', accountId);
             return bal;

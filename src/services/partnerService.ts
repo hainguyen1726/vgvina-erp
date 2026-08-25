@@ -34,22 +34,79 @@ export const partnerService = {
             throw error;
         }
 
-        // Fetch unpaid debt transactions for all partners to ensure 100% match with TK KN & TK Nợ NCC
-        const { data: debtTxns } = await supabase
-            .from('vgvina_debt_transactions')
-            .select('partner_id, amount, facility_id')
-            .neq('status', 'PAID');
+        // Calculate partner balances matching getPartnerStatement 100%
+        const [salesRes, purchaseRes, txnsRes, returnsRes] = await Promise.all([
+            supabase.from('vgvina_sales_orders').select('id, customer_id, total_amount, facility_id'),
+            supabase.from('vgvina_purchase_orders').select('id, supplier_id, total_amount, facility_id'),
+            supabase.from('vgvina_financial_transactions').select('partner_id, amount, type, account:account_id(name), facility_id'),
+            supabase.from('vgvina_return_vouchers').select('id, return_fee, discount, status, related_order_id, items:vgvina_return_voucher_items(quantity, price)')
+        ]);
 
         const totalsByPartner: Record<string, number> = {};
         const totalsByPartnerFacility: Record<string, number> = {};
 
-        (debtTxns || []).forEach((d: any) => {
-            if (!d.partner_id) return;
-            const amt = Number(d.amount) || 0;
-            totalsByPartner[d.partner_id] = (totalsByPartner[d.partner_id] || 0) + amt;
-            if (d.facility_id) {
-                const key = `${d.partner_id}_${d.facility_id}`;
+        function addPartnerAmount(pId: string, fId: string | null, amt: number) {
+            if (!pId) return;
+            totalsByPartner[pId] = (totalsByPartner[pId] || 0) + amt;
+            if (fId) {
+                const key = `${pId}_${fId}`;
                 totalsByPartnerFacility[key] = (totalsByPartnerFacility[key] || 0) + amt;
+            }
+        }
+
+        const partnerMap = new Map((data || []).map((p: any) => [p.id, p]));
+
+        // A. Sales Orders (increases CUSTOMER debt)
+        (salesRes.data || []).forEach((s: any) => {
+            addPartnerAmount(s.customer_id, s.facility_id, Number(s.total_amount) || 0);
+        });
+
+        // B. Purchase Orders (increases SUPPLIER debt)
+        (purchaseRes.data || []).forEach((p: any) => {
+            addPartnerAmount(p.supplier_id, p.facility_id, Number(p.total_amount) || 0);
+        });
+
+        // C. Financial Transactions
+        (txnsRes.data || []).forEach((t: any) => {
+            if (!t.partner_id) return;
+            const p = partnerMap.get(t.partner_id);
+            if (!p) return;
+            const accName = (t.account as any)?.name;
+            if (accName === 'TK KN' || accName === 'TK Nợ NCC') return;
+
+            const amt = Number(t.amount) || 0;
+            if (p.type === 'CUSTOMER') {
+                if (t.type === 'INCOME') {
+                    addPartnerAmount(t.partner_id, t.facility_id, -amt);
+                } else if (t.type === 'EXPENSE') {
+                    addPartnerAmount(t.partner_id, t.facility_id, amt);
+                }
+            } else { // SUPPLIER
+                if (t.type === 'EXPENSE') {
+                    addPartnerAmount(t.partner_id, t.facility_id, -amt);
+                } else if (t.type === 'INCOME') {
+                    addPartnerAmount(t.partner_id, t.facility_id, amt);
+                }
+            }
+        });
+
+        // D. Return Vouchers
+        const salesOrderMap = new Map((salesRes.data || []).map((s: any) => [s.id, s]));
+        const purchaseOrderMap = new Map((purchaseRes.data || []).map((p: any) => [p.id, p]));
+
+        (returnsRes.data || []).forEach((r: any) => {
+            if (r.status !== 'COMPLETED' && r.status !== 'APPROVED') return;
+            const itemsTotal = (r.items || []).reduce((sum: number, item: any) => 
+                sum + Math.round(Number(item.quantity || 0) * Number(item.price || 0)), 0);
+            const netTotal = itemsTotal - Number(r.return_fee || 0) - Number(r.discount || 0);
+            if (netTotal <= 0) return;
+
+            if (salesOrderMap.has(r.related_order_id)) {
+                const s = salesOrderMap.get(r.related_order_id);
+                addPartnerAmount(s.customer_id, s.facility_id, -netTotal);
+            } else if (purchaseOrderMap.has(r.related_order_id)) {
+                const p = purchaseOrderMap.get(r.related_order_id);
+                addPartnerAmount(p.supplier_id, p.facility_id, -netTotal);
             }
         });
 
