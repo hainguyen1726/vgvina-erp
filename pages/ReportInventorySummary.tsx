@@ -63,9 +63,9 @@ const ReportInventorySummary: React.FC = () => {
         try {
             setLoading(true);
             const data = await productService.getInventorySummaryReport(
-                selectedFacilityId || undefined,
                 dateRange.from,
-                dateRange.to
+                dateRange.to,
+                selectedFacilityId || undefined
             );
             setReportData(data);
         } catch (error) {

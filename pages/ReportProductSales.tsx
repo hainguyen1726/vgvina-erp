@@ -42,7 +42,7 @@ const ReportProductSales: React.FC = () => {
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>({ key: 'netRevenue', direction: 'descending' });
     const [visibleColumns, setVisibleColumns] = useState(["sku", "name", "category", "unit", "totalQty", "totalRevenue", "returnQty", "returnVal", "netRevenue"]);
 
-    const [selectedProductModal, setSelectedProductModal] = useState<{ productId: string; productName: string; productSku: string } | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<{ id: string; name: string; sku: string } | null>(null);
 
     useEffect(() => {
         const handleResize = () => {
@@ -65,9 +65,9 @@ const ReportProductSales: React.FC = () => {
         try {
             setLoading(true);
             const data = await productService.getProductSalesReport(
-                selectedFacilityId || undefined,
                 dateRange.from,
-                dateRange.to
+                dateRange.to,
+                selectedFacilityId || undefined
             );
             setReportData(data);
         } catch (error) {
@@ -174,8 +174,9 @@ const ReportProductSales: React.FC = () => {
             revenue: acc.revenue + curr.totalRevenue,
             returnQty: acc.returnQty + curr.returnQty,
             returnVal: acc.returnVal + curr.returnVal,
-            netRevenue: acc.netRevenue + curr.netRevenue
-        }), { qty: 0, revenue: 0, returnQty: 0, returnVal: 0, netRevenue: 0 });
+            netRevenue: acc.netRevenue + curr.netRevenue,
+            profit: acc.profit + (curr.profit || 0)
+        }), { qty: 0, revenue: 0, returnQty: 0, returnVal: 0, netRevenue: 0, profit: 0 });
     }, [filteredData]);
 
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);

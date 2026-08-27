@@ -105,7 +105,9 @@ export interface PurchaseOrder {
   id: string;
   code: string;
   supplier_name: string;
+  supplier_id?: string;
   facility_name: string;
+  facility_id?: string;
   status: OrderStatus;
   order_date: string;
   total_amount: number;
@@ -120,7 +122,9 @@ export interface SalesOrder {
   id: string;
   code: string;
   customer_name: string;
+  customer_id?: string;
   facility_name: string;
+  facility_id?: string;
   status: OrderStatus;
   order_date: string;
   total_amount: number;

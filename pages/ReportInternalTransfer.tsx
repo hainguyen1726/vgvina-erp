@@ -196,6 +196,7 @@ import { Product, User as AppUser, InternalTransferItem } from '../types';
 
 const EditVoucherModal = ({ isOpen, onClose, item, onSave }: { isOpen: boolean, onClose: () => void, item: InternalTransferVoucher | null, onSave: (item: any) => void }) => {
     const { showNotification } = useNotification();
+    const { currentUser } = useBranch();
     const [facilities, setFacilities] = useState<{ id: string, name: string }[]>([]);
     const [users, setUsers] = useState<AppUser[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
