@@ -1151,7 +1151,8 @@ export const excelUtils = {
             'Thành tiền',
             isExport ? 'Khách đã trả' : 'Đã thanh toán',
             'Còn nợ',
-            'Ghi chú'
+            'Ghi chú mặt hàng',
+            'Ghi chú đơn hàng'
         ];
 
         const wsData: any[][] = [headers];
@@ -1162,7 +1163,7 @@ export const excelUtils = {
             const branch = order.facility_name || '';
             const orderDateStr = order.order_date;
             const createdAtStr = order.created_at;
-            const notes = order.notes || '';
+            const orderNotes = order.notes || '';
             
             let orderDate = '';
             if (orderDateStr) {
@@ -1184,6 +1185,7 @@ export const excelUtils = {
                     const qty = item.quantity || 0;
                     const price = item.price || 0;
                     const lineTotal = Math.round(qty * price);
+                    const itemNotes = item.notes || '';
 
                     wsData.push([
                         orderCode,
@@ -1197,7 +1199,8 @@ export const excelUtils = {
                         lineTotal,
                         amountPaid,
                         remaining,
-                        notes
+                        itemNotes,
+                        orderNotes
                     ]);
                     rowBgColors.push(bgColor);
                 });
@@ -1214,7 +1217,8 @@ export const excelUtils = {
                     0,
                     amountPaid,
                     remaining,
-                    notes
+                    '',
+                    orderNotes
                 ]);
                 rowBgColors.push(bgColor);
             }
@@ -1234,7 +1238,8 @@ export const excelUtils = {
             { wch: 15 }, // Thành tiền
             { wch: 15 }, // Khách đã trả
             { wch: 15 }, // Còn nợ
-            { wch: 25 }, // Ghi chú
+            { wch: 25 }, // Ghi chú mặt hàng
+            { wch: 25 }, // Ghi chú đơn hàng
         ];
 
         const range = XLSX.utils.decode_range(ws['!ref']!);

@@ -1332,10 +1332,14 @@ const Debt: React.FC = () => {
   }, [debts, transactionStats]);
 
   const formatLargeCurrency = (value: number) => {
-    if (value >= 1000000000) {
-      return `${(value / 1000000000).toFixed(1)} Tỷ`;
-    } else if (value >= 1000000) {
-      return `${(value / 1000000).toFixed(1)} Tr`;
+    const absValue = Math.abs(value);
+    const sign = value < 0 ? '-' : '';
+    if (absValue >= 1000000000) {
+      const formatted = (absValue / 1000000000).toFixed(2).replace(/\.?0+$/, '');
+      return `${sign}${formatted} Tỷ`;
+    } else if (absValue >= 1000000) {
+      const formatted = (absValue / 1000000).toFixed(2).replace(/\.?0+$/, '');
+      return `${sign}${formatted} Tr`;
     }
     return `${value.toLocaleString('vi-VN')} ₫`;
   };
@@ -1357,10 +1361,42 @@ const Debt: React.FC = () => {
 
       {/* Desktop Summary Cards */}
       <div className="hidden md:flex space-x-4 mb-4">
-        <SummaryCard title="Tổng phải thu" value={formatLargeCurrency(totalReceivable)} icon={<CongNoIcon />} colorClass="bg-yellow-100 text-yellow-600" linkTo="/cong-no?type=RECEIVABLE&status=OUTSTANDING" />
-        <SummaryCard title="Tổng phải trả" value={formatLargeCurrency(totalPayable)} icon={<CongNoIcon />} colorClass="bg-red-100 text-red-600" linkTo="/cong-no?type=PAYABLE&status=OUTSTANDING" />
-        <SummaryCard title="Đã thu" value={formatLargeCurrency(totalCollected)} icon={<CongNoIcon />} colorClass="bg-green-100 text-green-600" linkTo="/cong-no?type=RECEIVABLE&status=PAID" />
-        <SummaryCard title="Đã trả" value={formatLargeCurrency(totalPaid)} icon={<CongNoIcon />} colorClass="bg-blue-100 text-blue-600" linkTo="/cong-no?type=PAYABLE&status=PAID" />
+        <SummaryCard
+          title="Tổng phải thu"
+          value={formatLargeCurrency(totalReceivable)}
+          subtitle={`${totalReceivable.toLocaleString('vi-VN')} ₫`}
+          tooltip={`Tổng phải thu: ${totalReceivable.toLocaleString('vi-VN')} ₫`}
+          icon={<CongNoIcon />}
+          colorClass="bg-yellow-100 text-yellow-600"
+          linkTo="/cong-no?type=RECEIVABLE&status=OUTSTANDING"
+        />
+        <SummaryCard
+          title="Tổng phải trả"
+          value={formatLargeCurrency(totalPayable)}
+          subtitle={`${totalPayable.toLocaleString('vi-VN')} ₫`}
+          tooltip={`Tổng phải trả: ${totalPayable.toLocaleString('vi-VN')} ₫`}
+          icon={<CongNoIcon />}
+          colorClass="bg-red-100 text-red-600"
+          linkTo="/cong-no?type=PAYABLE&status=OUTSTANDING"
+        />
+        <SummaryCard
+          title="Đã thu"
+          value={formatLargeCurrency(totalCollected)}
+          subtitle={`${totalCollected.toLocaleString('vi-VN')} ₫`}
+          tooltip={`Đã thu: ${totalCollected.toLocaleString('vi-VN')} ₫`}
+          icon={<CongNoIcon />}
+          colorClass="bg-green-100 text-green-600"
+          linkTo="/cong-no?type=RECEIVABLE&status=PAID"
+        />
+        <SummaryCard
+          title="Đã trả"
+          value={formatLargeCurrency(totalPaid)}
+          subtitle={`${totalPaid.toLocaleString('vi-VN')} ₫`}
+          tooltip={`Đã trả: ${totalPaid.toLocaleString('vi-VN')} ₫`}
+          icon={<CongNoIcon />}
+          colorClass="bg-blue-100 text-blue-600"
+          linkTo="/cong-no?type=PAYABLE&status=PAID"
+        />
       </div>
 
       {/* Mobile Summary Cards */}
@@ -1368,10 +1404,12 @@ const Debt: React.FC = () => {
         <Link to="/cong-no?type=RECEIVABLE&status=OUTSTANDING" className="block bg-white p-3 rounded-lg shadow-sm">
           <p className="text-xs font-medium text-gray-500">Tổng phải thu</p>
           <p className="text-base font-bold text-green-600 mt-1">{formatLargeCurrency(totalReceivable)}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5 truncate">{totalReceivable.toLocaleString('vi-VN')} ₫</p>
         </Link>
         <Link to="/cong-no?type=PAYABLE&status=OUTSTANDING" className="block bg-white p-3 rounded-lg shadow-sm">
           <p className="text-xs font-medium text-gray-500">Tổng phải trả</p>
           <p className="text-base font-bold text-red-600 mt-1">{formatLargeCurrency(totalPayable)}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5 truncate">{totalPayable.toLocaleString('vi-VN')} ₫</p>
         </Link>
       </div>
 

@@ -675,10 +675,14 @@ const IncomeExpense: React.FC = () => {
   }, [transactions, timeFilter, selectedAccountId]);
 
   const formatLargeCurrency = (value: number) => {
-    if (value >= 1000000000) {
-      return `${(value / 1000000000).toFixed(1)} Tỷ`;
-    } else if (value >= 1000000) {
-      return `${(value / 1000000).toFixed(1)} Tr`;
+    const absValue = Math.abs(value);
+    const sign = value < 0 ? '-' : '';
+    if (absValue >= 1000000000) {
+      const formatted = (absValue / 1000000000).toFixed(2).replace(/\.?0+$/, '');
+      return `${sign}${formatted} Tỷ`;
+    } else if (absValue >= 1000000) {
+      const formatted = (absValue / 1000000).toFixed(2).replace(/\.?0+$/, '');
+      return `${sign}${formatted} Tr`;
     }
     return `${value.toLocaleString('vi-VN')} ₫`;
   };
@@ -689,20 +693,59 @@ const IncomeExpense: React.FC = () => {
 
       {/* Desktop Summary Cards */}
       <div className="hidden md:flex space-x-6">
-        <SummaryCard title="Tổng thu" value={formatLargeCurrency(totalIncome)} icon={<ThuChiIcon />} colorClass="bg-green-100 text-green-600" linkTo="/thu-chi?type=INCOME" />
-        <SummaryCard title="Tổng chi" value={formatLargeCurrency(totalExpense)} icon={<ThuChiIcon />} colorClass="bg-red-100 text-red-600" linkTo="/thu-chi?type=EXPENSE" />
-        <SummaryCard title="Chênh lệch" value={(netAmount > 0 ? '+' : '') + formatLargeCurrency(netAmount)} icon={<ThuChiIcon />} colorClass="bg-blue-100 text-blue-600" linkTo="/thu-chi" />
+        <SummaryCard
+          title="Tổng thu"
+          value={formatLargeCurrency(totalIncome)}
+          subtitle={`${totalIncome.toLocaleString('vi-VN')} ₫`}
+          tooltip={`Tổng thu: ${totalIncome.toLocaleString('vi-VN')} ₫`}
+          icon={<ThuChiIcon />}
+          colorClass="bg-green-100 text-green-600"
+          linkTo="/thu-chi?type=INCOME"
+        />
+        <SummaryCard
+          title="Tổng chi"
+          value={formatLargeCurrency(totalExpense)}
+          subtitle={`${totalExpense.toLocaleString('vi-VN')} ₫`}
+          tooltip={`Tổng chi: ${totalExpense.toLocaleString('vi-VN')} ₫`}
+          icon={<ThuChiIcon />}
+          colorClass="bg-red-100 text-red-600"
+          linkTo="/thu-chi?type=EXPENSE"
+        />
+        <SummaryCard
+          title="Chênh lệch"
+          value={(netAmount > 0 ? '+' : '') + formatLargeCurrency(netAmount)}
+          subtitle={`${netAmount > 0 ? '+' : ''}${netAmount.toLocaleString('vi-VN')} ₫`}
+          tooltip={`Chênh lệch: ${netAmount > 0 ? '+' : ''}${netAmount.toLocaleString('vi-VN')} ₫`}
+          icon={<ThuChiIcon />}
+          colorClass="bg-blue-100 text-blue-600"
+          linkTo="/thu-chi"
+        />
       </div>
 
       {/* Mobile Summary Cards */}
-      <div className="md:hidden grid grid-cols-2 gap-4">
+      <div className="md:hidden grid grid-cols-2 sm:grid-cols-3 gap-3 mb-2">
         <Link to="/thu-chi?type=INCOME" className="block bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-          <p className="text-xs text-gray-500 font-medium">Tổng thu</p>
-          <p className="text-base font-bold text-green-600 mt-1">{formatLargeCurrency(totalIncome)}</p>
+          <p className="text-xs text-gray-500 font-medium truncate">Tổng thu</p>
+          <p className="text-base font-bold text-green-600 mt-1 truncate">{formatLargeCurrency(totalIncome)}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5 truncate" title={`${totalIncome.toLocaleString('vi-VN')} ₫`}>{totalIncome.toLocaleString('vi-VN')} ₫</p>
         </Link>
         <Link to="/thu-chi?type=EXPENSE" className="block bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-          <p className="text-xs text-gray-500 font-medium">Tổng chi</p>
-          <p className="text-base font-bold text-red-600 mt-1">{formatLargeCurrency(totalExpense)}</p>
+          <p className="text-xs text-gray-500 font-medium truncate">Tổng chi</p>
+          <p className="text-base font-bold text-red-600 mt-1 truncate">{formatLargeCurrency(totalExpense)}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5 truncate" title={`${totalExpense.toLocaleString('vi-VN')} ₫`}>{totalExpense.toLocaleString('vi-VN')} ₫</p>
+        </Link>
+        <Link to="/thu-chi" className="col-span-2 sm:col-span-1 block bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex sm:block justify-between items-center">
+            <div>
+              <p className="text-xs text-gray-500 font-medium truncate">Chênh lệch</p>
+              <p className={`text-base font-bold ${netAmount >= 0 ? 'text-blue-600' : 'text-orange-600'} mt-1 truncate`}>
+                {(netAmount > 0 ? '+' : '') + formatLargeCurrency(netAmount)}
+              </p>
+            </div>
+            <p className="text-xs sm:text-[11px] text-gray-400 sm:mt-0.5 text-right sm:text-left truncate" title={`${netAmount > 0 ? '+' : ''}${netAmount.toLocaleString('vi-VN')} ₫`}>
+              {(netAmount > 0 ? '+' : '') + netAmount.toLocaleString('vi-VN')} ₫
+            </p>
+          </div>
         </Link>
       </div>
 

@@ -389,7 +389,10 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                         {data.items.map((item: any, index: number) => (
                             <tr key={index}>
                                 <td className="border border-black p-1.5 text-center">{index + 1}</td>
-                                <td className="border border-black p-1.5">{item.name}</td>
+                                <td className="border border-black p-1.5">
+                                    {item.name}
+                                    {item.notes && <div className="text-xs italic text-gray-600">Ghi chú: {item.notes}</div>}
+                                </td>
                                 <td className="border border-black p-1.5 text-center">{item.sku}</td>
                                 <td className="border border-black p-1.5 text-center">{item.unit}</td>
                                 <td className="border border-black p-1.5 text-center">{item.quantity}</td>

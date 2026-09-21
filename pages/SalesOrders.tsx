@@ -123,7 +123,8 @@ export const SalesOrderDetailModal = ({ item, onClose, onEditClick, onDeleteClic
         unit: i.product.unit,
         quantity: i.quantity,
         price: i.price,
-        total: i.quantity * i.price
+        total: i.quantity * i.price,
+        notes: i.notes || ''
       })),
       summary: {
         total: item.total_amount,
@@ -196,6 +197,7 @@ export const SalesOrderDetailModal = ({ item, onClose, onEditClick, onDeleteClic
                       <th className="p-2 text-right">Số lượng</th>
                       <th className="p-2 text-right">Đơn giá</th>
                       <th className="p-2 text-right">Thành tiền</th>
+                      <th className="p-2">Ghi chú</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -207,12 +209,13 @@ export const SalesOrderDetailModal = ({ item, onClose, onEditClick, onDeleteClic
                         <td className="p-2 text-right tabular-nums">{orderItem.quantity}</td>
                         <td className="p-2 text-right tabular-nums">{orderItem.price.toLocaleString('vi-VN')}</td>
                         <td className="p-2 text-right font-medium tabular-nums">{Math.round(orderItem.quantity * orderItem.price).toLocaleString('vi-VN')}</td>
+                        <td className="p-2 text-gray-600 italic text-xs max-w-xs truncate" title={orderItem.notes || ''}>{orderItem.notes || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-50 font-semibold">
-                      <td colSpan={5} className="p-2 text-right">Tổng cộng</td>
+                      <td colSpan={6} className="p-2 text-right">Tổng cộng</td>
                       <td className="p-2 text-right text-blue-600">{item.total_amount.toLocaleString('vi-VN')} ₫</td>
                     </tr>
                   </tfoot>

@@ -281,6 +281,7 @@ const VoucherModal: React.FC<VoucherModalProps> = ({ isOpen, onClose, voucherTyp
                 quantity: parseFloat(String(item.quantity)) || 0,
                 price: parseFloat(String(item.price)) || 0,
                 total: Math.round((parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0)),
+                notes: item.notes || '',
             })),
             summary: {
                 total: totalAmount,
