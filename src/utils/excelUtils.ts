@@ -873,7 +873,7 @@ export const excelUtils = {
             [null, null, `Đơn vị tính: ${product.unit || 'Lẻ'}`],
             [null, null, `Kho hàng: ${facilityName}`],
             [],
-            ['Chứng từ', 'Thời gian', 'Loại giao dịch', 'Đối tác', 'Giá GD', 'Giá vốn', 'Số lượng', 'Tồn cuối']
+            ['Chứng từ', 'Thời gian', 'Loại giao dịch', 'Đối tác', 'Giá GD', 'Giá vốn', 'Số lượng', 'Tồn cuối', 'Ghi chú']
         ];
 
         let totalIn = 0;
@@ -888,7 +888,8 @@ export const excelUtils = {
                 product.price,
                 0,
                 0,
-                product.quantity
+                product.quantity,
+                ''
             ]);
         } else {
             const rows = history.map(item => {
@@ -905,7 +906,8 @@ export const excelUtils = {
                     Number(item.price || 0),
                     0, // Giá vốn (Placeholder do dữ liệu hiện tại chưa bóc tách sâu giá vốn mỗi giao dịch)
                     qtyDiff,
-                    Number(item.balance || 0)
+                    Number(item.balance || 0),
+                    item.note || item.notes || ''
                 ];
             });
 
@@ -916,12 +918,12 @@ export const excelUtils = {
 
         // Styling
         ws['!merges'] = [
-            { s: { r: 1, c: 2 }, e: { r: 1, c: 7 } },
-            { s: { r: 2, c: 2 }, e: { r: 2, c: 7 } },
-            { s: { r: 3, c: 2 }, e: { r: 3, c: 7 } },
-            { s: { r: 4, c: 2 }, e: { r: 4, c: 7 } },
-            { s: { r: 5, c: 2 }, e: { r: 5, c: 7 } },
-            { s: { r: 6, c: 2 }, e: { r: 6, c: 7 } },
+            { s: { r: 1, c: 2 }, e: { r: 1, c: 8 } },
+            { s: { r: 2, c: 2 }, e: { r: 2, c: 8 } },
+            { s: { r: 3, c: 2 }, e: { r: 3, c: 8 } },
+            { s: { r: 4, c: 2 }, e: { r: 4, c: 8 } },
+            { s: { r: 5, c: 2 }, e: { r: 5, c: 8 } },
+            { s: { r: 6, c: 2 }, e: { r: 6, c: 8 } },
         ];
 
         ws['C2'].s = { font: { bold: true, sz: 16, name: 'Arial', color: { rgb: '333333' } }, alignment: { horizontal: 'center' } };
@@ -933,7 +935,7 @@ export const excelUtils = {
 
         // Column widths
         ws['!cols'] = [
-            { wch: 15 }, // Chứng từ
+            { wch: 18 }, // Chứng từ
             { wch: 20 }, // Thời gian
             { wch: 20 }, // Loại GD
             { wch: 25 }, // Đối tác
@@ -941,6 +943,7 @@ export const excelUtils = {
             { wch: 15 }, // Giá vốn
             { wch: 15 }, // Số lượng
             { wch: 15 }, // Tồn cuối
+            { wch: 25 }, // Ghi chú
         ];
 
         const range = XLSX.utils.decode_range(ws['!ref']!);
@@ -956,7 +959,7 @@ export const excelUtils = {
                     // Header row
                     cell.s = { ...headerRowStyle };
                 } else if (R > 8) {
-                    const isNum = C >= 4;
+                    const isNum = C >= 4 && C <= 7;
                     cell.s = {
                         font: { name: 'Arial', sz: 10, color: { rgb: '333333' } },
                         alignment: { horizontal: isNum ? 'right' : (C === 0 || C === 1 ? 'center' : 'left'), vertical: 'center' },
@@ -965,7 +968,11 @@ export const excelUtils = {
                     if (C === 0) cell.s.font.color = { rgb: '0066CC' }; // Mã chứng từ màu xanh
 
                     if (isNum && typeof cell.v === 'number') {
-                        cell.z = '#,##0'; // Number format
+                        if (C === 6 || C === 7) {
+                            cell.z = '#,##0.##';
+                        } else {
+                            cell.z = '#,##0';
+                        }
                     }
                 }
             }

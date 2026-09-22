@@ -194,6 +194,7 @@ const ProductMovementModal: React.FC<ProductMovementModalProps> = ({ isOpen, onC
                                         <th className="px-4 py-3 text-right border-b text-green-600">Sl nhập</th>
                                         <th className="px-4 py-3 text-right border-b text-red-600">Sl xuất</th>
                                         <th className="px-4 py-3 text-right border-b">Tồn kho</th>
+                                        <th className="px-4 py-3 text-left border-b">Ghi chú</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200 text-sm">
@@ -220,10 +221,13 @@ const ProductMovementModal: React.FC<ProductMovementModalProps> = ({ isOpen, onC
                                             <td className="px-4 py-3 whitespace-nowrap text-right font-bold text-gray-900 border-l border-gray-100 bg-gray-50/50">
                                                 {formatQty(m.balance)}
                                             </td>
+                                            <td className="px-4 py-3 text-xs text-gray-600 italic max-w-xs truncate" title={m.note || ''}>
+                                                {m.note || '-'}
+                                            </td>
                                         </tr>
                                     )) : (
                                         <tr>
-                                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500 italic">Không có giao dịch nào trong khoảng thời gian này.</td>
+                                            <td colSpan={8} className="px-4 py-8 text-center text-gray-500 italic">Không có giao dịch nào trong khoảng thời gian này.</td>
                                         </tr>
                                     )}
                                 </tbody>

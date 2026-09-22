@@ -210,17 +210,17 @@ export const productService = {
         const [sales, purchases, transfersOut, transfersIn, scrapping, returns] = await Promise.all([
             supabase.from('vgvina_sales_order_items').select(`
                 quantity, price, notes,
-                order:order_id ( id, code, order_date, facility_id, status, partner:customer_id ( name ) )
+                order:order_id ( id, code, order_date, facility_id, status, notes, partner:customer_id ( name ) )
             `).eq('product_id', productId),
 
             supabase.from('vgvina_purchase_order_items').select(`
                 quantity, price, notes,
-                order:order_id ( id, code, order_date, facility_id, status, partner:supplier_id ( name ) )
+                order:order_id ( id, code, order_date, facility_id, status, notes, partner:supplier_id ( name ) )
             `).eq('product_id', productId),
 
             supabase.from('vgvina_internal_transfer_items').select(`
                 quantity, notes,
-                transfer:transfer_id ( id, code, transfer_date, status, from_facility_id, to_facility_id, from_facility:from_facility_id ( name ), to_facility:to_facility_id ( name ) )
+                transfer:transfer_id ( id, code, transfer_date, status, notes, from_facility_id, to_facility_id, from_facility:from_facility_id ( name ), to_facility:to_facility_id ( name ) )
             `).eq('product_id', productId),
 
             // Transfers IN — same query but we'll keep both directions and filter by facility below
@@ -228,14 +228,25 @@ export const productService = {
 
             supabase.from('vgvina_scrapping_voucher_items').select(`
                 quantity, notes,
-                voucher:scrapping_id ( id, code, scrapping_date, status, facility_id )
+                voucher:scrapping_id ( id, code, scrapping_date, status, notes, facility_id )
             `).eq('product_id', productId),
 
             supabase.from('vgvina_return_voucher_items').select(`
                 quantity, price, notes,
-                voucher:return_id ( id, code, return_date, status, related_order_id )
+                voucher:return_id ( id, code, return_date, status, notes, related_order_id )
             `).eq('product_id', productId)
         ]);
+
+        // Helper gộp ghi chú của mặt hàng và ghi chú chung của phiếu
+        const resolveNote = (itemNotes?: string, orderNotes?: string) => {
+            const iNote = (itemNotes || '').trim();
+            const oNote = (orderNotes || '').trim();
+            if (iNote && oNote) {
+                if (iNote === oNote) return iNote;
+                return `${iNote} (${oNote})`;
+            }
+            return iNote || oNote || '';
+        };
 
         // For transfers, the same transfer item appears as OUT (from_facility) and IN (to_facility)
         // We synthesize 2 movement rows per item depending on facility filter:
@@ -257,7 +268,7 @@ export const productService = {
                 type: 'Xuất lẻ (Bán)',
                 partner: s.order?.partner?.name || 'Vãng lai',
                 facility_id: fid,
-                note: s.notes,
+                note: resolveNote(s.notes, s.order?.notes),
                 qty_in: 0,
                 qty_out: s.quantity,
                 price: s.price
@@ -278,7 +289,7 @@ export const productService = {
                 type: 'Nhập kho (Mua)',
                 partner: p.order?.partner?.name || 'NCC',
                 facility_id: fid,
-                note: p.notes,
+                note: resolveNote(p.notes, p.order?.notes),
                 qty_in: p.quantity,
                 qty_out: 0,
                 price: p.price
@@ -301,7 +312,7 @@ export const productService = {
                         type: 'Xuất điều chuyển',
                         partner: `Tới: ${t.transfer?.to_facility?.name || ''}`,
                         facility_id: fromId,
-                        note: t.notes,
+                        note: resolveNote(t.notes, t.transfer?.notes),
                         qty_in: 0,
                         qty_out: t.quantity,
                         price: 0
@@ -319,7 +330,7 @@ export const productService = {
                         type: 'Nhập điều chuyển',
                         partner: `Từ: ${t.transfer?.from_facility?.name || ''}`,
                         facility_id: toId,
-                        note: t.notes,
+                        note: resolveNote(t.notes, t.transfer?.notes),
                         qty_in: t.quantity,
                         qty_out: 0,
                         price: 0
@@ -342,7 +353,7 @@ export const productService = {
                 type: 'Hủy hàng',
                 partner: 'Nội bộ',
                 facility_id: fid,
-                note: sc.notes,
+                note: resolveNote(sc.notes, sc.voucher?.notes),
                 qty_in: 0,
                 qty_out: sc.quantity,
                 price: 0
@@ -378,7 +389,7 @@ export const productService = {
                 type: 'Trả hàng',
                 partner: 'Khách hàng',
                 facility_id: fid,
-                note: r.notes,
+                note: resolveNote(r.notes, r.voucher?.notes),
                 qty_in: r.quantity,
                 qty_out: 0,
                 price: r.price
