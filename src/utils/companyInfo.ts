@@ -4,6 +4,7 @@ export interface CompanyInfo {
     taxCode: string;
     address: string;
     phone: string;
+    email?: string;
     owner?: string;
     footerText: string;
     isHkd: boolean;
@@ -47,11 +48,12 @@ export const getCompanyInfo = (overrideIsHkd?: boolean): CompanyInfo => {
     }
     
     return {
-        name: 'CÔNG TY CP THỰC PHẨM ECO ORGANIC NHA TRANG',
+        name: 'CÔNG TY CỔ PHẦN THỰC PHẨM ECO ORGANIC NHA TRANG',
         shortName: 'VGVINA',
-        taxCode: '4201889812',
-        address: 'Thôn Cát Lợi, Xã Vĩnh Lương, TP. Nha Trang, Khánh Hòa',
-        phone: '0906473768',
+        taxCode: '4201 907 902',
+        address: 'Thôn Cát Lợi, Phường Bắc Nha Trang, Tỉnh Khánh Hòa, Việt Nam.',
+        phone: '02583.511.179',
+        email: 'ntecoorganicfoods@gmail.com',
         footerText: 'VGVINA',
         isHkd: false,
         brandColor: '#0066cc',

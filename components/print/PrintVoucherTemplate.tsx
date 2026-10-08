@@ -76,7 +76,7 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                         <h3 className="font-bold text-base uppercase">{company.name}</h3>
                         {company.taxCode && <p>MST/Mã số HKD: {company.taxCode}</p>}
                         <p>Địa chỉ: {company.address}</p>
-                        <p>Điện thoại: {company.phone}</p>
+                        <p>Điện thoại: {company.phone}{company.email ? ` | Email: ${company.email}` : ''}</p>
                     </div>
                 </div>
 
@@ -190,7 +190,7 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                         <h3 className="font-bold text-base uppercase">{company.name}</h3>
                         {company.taxCode && <p>MST/Mã số HKD: {company.taxCode}</p>}
                         <p>Địa chỉ: {company.address}</p>
-                        <p>Điện thoại: {company.phone}</p>
+                        <p>Điện thoại: {company.phone}{company.email ? ` | Email: ${company.email}` : ''}</p>
                     </div>
                 </div>
 
@@ -299,7 +299,7 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                     <h3 className="font-bold text-base uppercase">{company.name}</h3>
                     {company.taxCode && <p>MST/Mã số HKD: {company.taxCode}</p>}
                     <p>Địa chỉ: {company.address}</p>
-                    <p>Điện thoại: {company.phone}</p>
+                    <p>Điện thoại: {company.phone}{company.email ? ` | Email: ${company.email}` : ''}</p>
                 </div>
                 <div className="text-right">
                     <p className="font-bold">Mẫu số: ...</p>

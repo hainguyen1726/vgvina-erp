@@ -7,6 +7,7 @@ export const getCompanyUnitHeader = () => {
     let text = `Đơn vị: ${company.name}`;
     if (company.taxCode) text += ` | MST: ${company.taxCode}`;
     text += ` | ĐT: ${company.phone}`;
+    if (company.email) text += ` | Email: ${company.email}`;
     return text;
 };
 
@@ -1925,7 +1926,7 @@ export const excelUtils = {
 
         const wsData: any[][] = [
             [company.name, null, null, titleText],
-            [`${company.address} | ĐT: ${company.phone}${company.taxCode ? ' | MST: ' + company.taxCode : ''}`, null, null, item.code],
+            [`${company.address} | ĐT: ${company.phone}${company.taxCode ? ' | MST: ' + company.taxCode : ''}${company.email ? ' | Email: ' + company.email : ''}`, null, null, item.code],
             [],
             [`Ngày lập: ${currentDateStr}`],
             [],
