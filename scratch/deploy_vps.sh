@@ -71,4 +71,12 @@ fi
 # Clean package
 rm -f /tmp/dist.tar.gz
 
+# Reload OpenLiteSpeed to apply .htaccess and purge cache
+echo "=== Reloading OpenLiteSpeed web server ==="
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl reload lsws 2>/dev/null || systemctl restart lsws 2>/dev/null || true
+elif [ -f /usr/local/lsws/bin/lswsctrl ]; then
+  /usr/local/lsws/bin/lswsctrl reload 2>/dev/null || true
+fi
+
 echo "=== Safe deployment completed (baocao + hkd) ==="

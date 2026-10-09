@@ -74,7 +74,7 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                 <div className="flex justify-between mb-6">
                     <div>
                         <h3 className="font-bold text-base uppercase">{company.name}</h3>
-                        {company.taxCode && <p>MST/Mã số HKD: {company.taxCode}</p>}
+                        {company.taxCode && <p>{company.isHkd ? 'Mã số HKD' : 'MST'}: {company.taxCode}</p>}
                         <p>Địa chỉ: {company.address}</p>
                         <p>Điện thoại: {company.phone}{company.email ? ` | Email: ${company.email}` : ''}</p>
                     </div>
@@ -188,7 +188,7 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
                 <div className="flex justify-between mb-6">
                     <div>
                         <h3 className="font-bold text-base uppercase">{company.name}</h3>
-                        {company.taxCode && <p>MST/Mã số HKD: {company.taxCode}</p>}
+                        {company.taxCode && <p>{company.isHkd ? 'Mã số HKD' : 'MST'}: {company.taxCode}</p>}
                         <p>Địa chỉ: {company.address}</p>
                         <p>Điện thoại: {company.phone}{company.email ? ` | Email: ${company.email}` : ''}</p>
                     </div>
@@ -297,7 +297,7 @@ const PrintVoucherTemplate: React.FC<PrintVoucherTemplateProps> = ({ voucherType
             <div className="flex justify-between mb-4">
                 <div>
                     <h3 className="font-bold text-base uppercase">{company.name}</h3>
-                    {company.taxCode && <p>MST/Mã số HKD: {company.taxCode}</p>}
+                    {company.taxCode && <p>{company.isHkd ? 'Mã số HKD' : 'MST'}: {company.taxCode}</p>}
                     <p>Địa chỉ: {company.address}</p>
                     <p>Điện thoại: {company.phone}{company.email ? ` | Email: ${company.email}` : ''}</p>
                 </div>

@@ -168,6 +168,48 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Tự động kiểm tra bản build mới khi người dùng mở lại tab hoặc bật máy tính hôm sau
+  useEffect(() => {
+    let isChecking = false;
+    const checkAppVersion = async () => {
+      if (isChecking) return;
+      isChecking = true;
+      try {
+        const res = await fetch(`/index.html?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const html = await res.text();
+        const match = html.match(/\/assets\/index-[^"']+\.js/);
+        if (!match) return;
+        const serverScript = match[0];
+        const currentScript = document.querySelector('script[src*="/assets/index-"]')?.getAttribute('src');
+        if (currentScript && serverScript && currentScript !== serverScript) {
+          console.info('Phát hiện phiên bản mới, tự động tải lại trang...');
+          window.location.reload();
+        }
+      } catch (err) {
+        // Bỏ qua lỗi mạng
+      } finally {
+        isChecking = false;
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkAppVersion();
+      }
+    };
+
+    window.addEventListener('focus', checkAppVersion);
+    document.addEventListener('visibilitychange', handleVisibility);
+    const interval = setInterval(checkAppVersion, 15 * 60 * 1000); // 15 phút kiểm tra 1 lần
+
+    return () => {
+      window.removeEventListener('focus', checkAppVersion);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
+  }, []);
+
   return (
     <NotificationProvider>
       <Notification />
